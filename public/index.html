@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Communication Assessment Suite - Welcome</title>
+    <link rel="stylesheet" href="auth-styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header Section -->
+        <div class="header">
+            <h1>🎯 Communication Assessment Suite</h1>
+            <p>Master your communication skills with AI-powered assessments</p>
+        </div>
+
+        <!-- Hero Section -->
+        <div class="hero-section">
+            <div class="hero-content">
+                <h2>Elevate Your Communication Skills</h2>
+                <p class="hero-description">
+                    Join thousands of learners who have improved their communication skills through our comprehensive, 
+                    AI-powered assessment platform. Get detailed feedback on pronunciation, listening, comprehension, and more.
+                </p>
+                
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">🎤</div>
+                        <h3>Speech Assessment</h3>
+                        <p>Advanced pronunciation analysis using Azure Speech API</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">🧠</div>
+                        <h3>AI-Powered Feedback</h3>
+                        <p>Detailed insights powered by OpenAI and DeepSeek models</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">📊</div>
+                        <h3>Comprehensive Reports</h3>
+                        <p>Track your progress across 7 different assessment areas</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">🎯</div>
+                        <h3>Personalized Learning</h3>
+                        <p>Tailored assessments based on your skill level</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Assessment Types Preview -->
+        <div class="assessments-preview">
+            <h2>🚀 7 Assessment Types Available</h2>
+            <div class="assessment-types">
+                <div class="type-badge">📖 Reading Ability</div>
+                <div class="type-badge">👂 Listening Skills</div>
+                <div class="type-badge">🔤 Sentence Construction</div>
+                <div class="type-badge">📚 Story Summarization</div>
+                <div class="type-badge">🤔 Interview Questions</div>
+                <div class="type-badge">📝 Reading Comprehension</div>
+                <div class="type-badge">⚫ Grammar Mastery</div>
+            </div>
+        </div>
+
+        <!-- Call to Action -->
+        <div class="cta-section">
+            <div class="auth-options">
+                <div class="auth-card">
+                    <h3>Ready to Start?</h3>
+                    <p>Create your account and begin your communication journey today</p>
+                    <a href="/signup" class="btn btn-primary">Sign Up Free</a>
+                </div>
+                
+                <div class="auth-card">
+                    <h3>Already a Member?</h3>
+                    <p>Welcome back! Continue your assessment progress</p>
+                    <a href="/login" class="btn btn-secondary">Log In</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>&copy; 2024 Communication Assessment Suite. Empowering better communication through AI.</p>
+        </div>
+            </div>
+            
+    <!-- Login/Signup Status Messages -->
+    <div id="message-container" class="message-container" style="display: none;">
+        <div id="message" class="message"></div>
+                </div>
+                
+    <script>
+        // Show messages from URL parameters (redirects from login/signup)
+        const urlParams = new URLSearchParams(window.location.search);
+        const message = urlParams.get('message');
+        const type = urlParams.get('type');
+        
+        if (message) {
+            const messageContainer = document.getElementById('message-container');
+            const messageElement = document.getElementById('message');
+            
+            messageElement.textContent = decodeURIComponent(message);
+            messageElement.className = `message ${type || 'info'}`;
+            messageContainer.style.display = 'block';
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                messageContainer.style.display = 'none';
+            }, 5000);
+        }
+    </script>
+</body>
+</html> 

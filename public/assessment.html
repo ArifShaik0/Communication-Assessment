@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Communication Assessment Suite</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://aka.ms/csspeech/jsbrowserpackageraw"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header Section -->
+        <div class="header">
+            <h1>Communication Assessment Suite</h1>
+            <p>Comprehensive evaluation of your communication skills using AI and speech technology</p>
+        </div>
+
+        <!-- Welcome Section -->
+        <div class="welcome-section" id="welcome-section">
+            <div class="assessment-overview">
+                <h2>Assessment Overview</h2>
+                <p>This comprehensive assessment evaluates your communication skills across multiple dimensions:</p>
+                
+                <div class="assessment-grid">
+                    <div class="assessment-card">
+                        <div class="card-icon">📖</div>
+                        <h3>Reading Ability</h3>
+                        <p>Pronunciation assessment of generated text</p>
+                    </div>
+                    
+                    <div class="assessment-card">
+                        <div class="card-icon">👂</div>
+                        <h3>Listening Ability</h3>
+                        <p>Listen and repeat assessment</p>
+                    </div>
+                    
+                    <div class="assessment-card">
+                        <div class="card-icon">🔤</div>
+                        <h3>Jumbled Sentences</h3>
+                        <p>Reconstruct scrambled sentences</p>
+                    </div>
+                    
+                    <div class="assessment-card">
+                        <div class="card-icon">📚</div>
+                        <h3>Story Summarization</h3>
+                        <p>Listen to AI-generated stories and summarize</p>
+                    </div>
+                    
+                    <div class="assessment-card">
+                        <div class="card-icon">🤔</div>
+                        <h3>Personal Questions</h3>
+                        <p>AI interview questions with detailed feedback</p>
+                    </div>
+                    
+                    <div class="assessment-card">
+                        <div class="card-icon">📝</div>
+                        <h3>Reading Comprehension</h3>
+                        <p>AI-generated passages with comprehension questions</p>
+                    </div>
+                    
+                    <div class="assessment-card">
+                        <div class="card-icon">⚫</div>
+                        <h3>Fill in the Blanks</h3>
+                        <p>Grammar-based fill-in-the-blanks questions</p>
+                    </div>
+                </div>
+                
+                <div class="start-button-container">
+                    <button id="start-assessment" class="start-btn">Start Assessment</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Assessment Navigation -->
+        <div class="assessment-nav" id="assessment-nav" style="display: none;">
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                <div class="progress-text">
+                    <span id="current-step">1</span> of <span id="total-steps">7</span> assessments
+                </div>
+            </div>
+            
+            <div class="nav-buttons">
+                <button id="prev-btn" class="nav-btn" disabled>Previous</button>
+                <button id="next-btn" class="nav-btn">Next</button>
+                <button id="finish-btn" class="nav-btn finish-btn" style="display: none;">View Results</button>
+            </div>
+        </div>
+
+        <!-- Assessment Sections -->
+        
+        <!-- Reading Ability Assessment -->
+        <div class="assessment-section" id="reading-assessment" style="display: none;">
+            <div class="assessment-header">
+                <h2>📖 Reading Ability Assessment</h2>
+                <p>Read the generated sentence aloud for pronunciation evaluation</p>
+            </div>
+            
+            <div class="assessment-content">
+                <div class="sentence-display">
+                    <div class="loading" id="reading-loading">
+                        <div class="spinner"></div>
+                        <p>Generating sentence...</p>
+                    </div>
+                    <div class="sentence-text" id="reading-sentence" style="display: none;"></div>
+                </div>
+                
+                <div class="recording-controls" id="reading-controls" style="display: none;">
+                    <button id="reading-record-btn" class="record-btn">🎤 Start Recording</button>
+                    <button id="reading-stop-btn" class="record-btn stop-btn" style="display: none;">⏹ Stop Recording</button>
+                    <div class="recording-status" id="reading-status"></div>
+                </div>
+                
+                <div class="results-display" id="reading-results" style="display: none;">
+                    <h3>Pronunciation Results</h3>
+                    <div class="score-display">
+                        <span class="score-label">Score:</span>
+                        <span class="score-value" id="reading-score">--</span>
+                        <span class="score-max">/100</span>
+                    </div>
+                    <div class="feedback" id="reading-feedback"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Listening Ability Assessment -->
+        <div class="assessment-section" id="listening-assessment" style="display: none;">
+            <div class="assessment-header">
+                <h2>👂 Listening Ability Assessment</h2>
+                <p>Listen to the audio and repeat what you hear</p>
+            </div>
+            
+            <div class="assessment-content">
+                <div class="audio-section">
+                    <div class="loading" id="listening-loading">
+                        <div class="spinner"></div>
+                        <p>Generating audio...</p>
+                    </div>
+                    <div class="audio-player" id="listening-player" style="display: none;">
+                        <audio id="listening-audio" controls></audio>
+                        <p class="instruction">Play the audio and listen carefully, then record your repetition below.</p>
+                    </div>
+                </div>
+                
+                <div class="recording-controls" id="listening-controls" style="display: none;">
+                    <button id="listening-record-btn" class="record-btn">🎤 Start Recording</button>
+                    <button id="listening-stop-btn" class="record-btn stop-btn" style="display: none;">⏹ Stop Recording</button>
+                    <div class="recording-status" id="listening-status"></div>
+                </div>
+                
+                <div class="results-display" id="listening-results" style="display: none;">
+                    <h3>Listening & Repetition Results</h3>
+                    <div class="score-display">
+                        <span class="score-label">Score:</span>
+                        <span class="score-value" id="listening-score">--</span>
+                        <span class="score-max">/100</span>
+                    </div>
+                    <div class="feedback" id="listening-feedback"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Jumbled Sentences Assessment -->
+        <div class="assessment-section" id="jumbled-assessment" style="display: none;">
+            <div class="assessment-header">
+                <h2>🔤 Jumbled Sentences Assessment</h2>
+                <p>Rearrange the jumbled words to form correct sentences</p>
+            </div>
+            
+            <div class="assessment-content">
+                <div class="loading" id="jumbled-loading">
+                    <div class="spinner"></div>
+                    <p>Generating jumbled sentences...</p>
+                </div>
+                
+                <div class="jumbled-game" id="jumbled-game" style="display: none;">
+                    <div class="question-progress">
+                        Question <span id="jumbled-current">1</span> of <span id="jumbled-total">5</span>
+                    </div>
+                    
+                    <div class="jumbled-sentence" id="jumbled-sentence"></div>
+                    
+                    <div class="answer-section">
+                        <input type="text" id="jumbled-answer" placeholder="Type the correct sentence here..." />
+                        <button id="jumbled-submit" class="submit-btn">Submit Answer</button>
+                    </div>
+                    
+                    <div class="jumbled-feedback" id="jumbled-feedback"></div>
+                </div>
+                
+                <div class="results-display" id="jumbled-results" style="display: none;">
+                    <h3>Jumbled Sentences Results</h3>
+                    <div class="score-display">
+                        <span class="score-label">Score:</span>
+                        <span class="score-value" id="jumbled-score">--</span>
+                        <span class="score-max">/100</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Story Summarization Assessment -->
+        <div class="assessment-section" id="story-assessment" style="display: none;">
+            <div class="assessment-header">
+                <h2>📚 Story Summarization Assessment</h2>
+                <p>Listen to an AI-generated story and provide a clear summary</p>
+            </div>
+            
+            <div class="assessment-content">
+                <div class="loading" id="story-loading">
+                    <div class="spinner"></div>
+                    <p>Generating story and audio...</p>
+                </div>
+                
+                <div class="story-player" id="story-player" style="display: none;">
+                    <div class="story-instructions">
+                        <h3>📖 Listen to the Story</h3>
+                        <p>You can play the audio up to 2 times. Listen carefully and prepare to summarize.</p>
+                    </div>
+                    
+                    <div class="audio-controls">
+                        <audio id="story-audio" controls>
+                            Your browser does not support the audio element.
+                        </audio>
+                        <div class="play-counter">
+                            <span class="counter-label">Plays remaining:</span>
+                            <span id="story-play-count" class="counter-value">2</span>
+                        </div>
+                    </div>
+                    
+                    <div class="summary-section" id="story-summary-section" style="display: none;">
+                        <h3>🎤 Record Your Summary</h3>
+                        <p>Summarize the story in your own words. Speak clearly and concisely.</p>
+                        
+                        <div class="recording-controls">
+                            <button id="story-record-btn" class="record-btn">🎤 Start Recording Summary</button>
+                            <button id="story-stop-btn" class="record-btn stop-btn" style="display: none;">⏹ Stop Recording</button>
+                        </div>
+                        
+                        <div class="recording-status" id="story-status"></div>
+                    </div>
+                </div>
+                
+                <div class="results-display" id="story-results" style="display: none;">
+                    <h3>Story Summarization Results</h3>
+                    <div class="score-display">
+                        <span class="score-label">Score:</span>
+                        <span class="score-value" id="story-score">--</span>
+                        <span class="score-max">/100</span>
+                    </div>
+                    <div class="feedback" id="story-feedback"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Personal Questions Assessment -->
+        <div class="assessment-section" id="personal-assessment" style="display: none;">
+            <div class="assessment-header">
+                <h2>🤔 Personal Questions Assessment</h2>
+                <p>Answer AI-generated interview questions with detailed feedback</p>
+            </div>
+            
+            <div class="assessment-content">
+                <div class="loading" id="personal-loading">
+                    <div class="spinner"></div>
+                    <p>Generating interview question...</p>
+                </div>
+                
+                <div class="question-display" id="personal-question-display" style="display: none;">
+                    <div class="question-settings">
+                        <div class="setting-group">
+                            <label for="personal-difficulty">Difficulty:</label>
+                            <select id="personal-difficulty">
+                                <option value="Easy">Easy - Entry Level</option>
+                                <option value="Medium" selected>Medium - Mid Level</option>
+                                <option value="Hard">Hard - Senior Level</option>
+                            </select>
+                        </div>
+                        <div class="setting-group">
+                            <label for="personal-category">Category:</label>
+                            <select id="personal-category">
+                                <option value="General">General Communication</option>
+                                <option value="Technical Communication">Technical Communication</option>
+                                <option value="Problem Solving">Problem Solving</option>
+                                <option value="Teamwork">Teamwork & Collaboration</option>
+                                <option value="Leadership">Leadership</option>
+                                <option value="Failure/Learning">Failure & Learning</option>
+                                <option value="Innovation">Innovation & Creativity</option>
+                            </select>
+                        </div>
+                        <button id="personal-generate-btn" class="generate-btn">Generate Question</button>
+                    </div>
+                    
+                    <div class="interview-question" id="personal-question-container" style="display: none;">
+                        <div class="question-meta">
+                            <span class="difficulty-badge" id="personal-difficulty-badge">Medium</span>
+                            <span class="category-badge" id="personal-category-badge">General</span>
+                        </div>
+                        
+                        <div class="question-text" id="personal-question-text"></div>
+                        
+                        <div class="response-section">
+                            <div class="response-instructions">
+                                <h4>Your Response:</h4>
+                                <p>Take a moment to think, then record your answer. Aim for 30-90 seconds.</p>
+                            </div>
+                            
+                            <div class="recording-controls">
+                                <button id="personal-record-btn" class="record-btn">🎤 Start Recording</button>
+                                <button id="personal-stop-btn" class="record-btn stop-btn" style="display: none;">⏹ Stop Recording</button>
+                                <button id="personal-retry-btn" class="secondary-btn" style="display: none;">🔄 Retry Question</button>
+                            </div>
+                            
+                            <div class="recording-status" id="personal-status"></div>
+                            <div class="recording-timer" id="personal-timer"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="results-display" id="personal-results" style="display: none;">
+                    <h3>Interview Assessment Results</h3>
+                    <div class="score-display">
+                        <span class="score-label">Score:</span>
+                        <span class="score-value" id="personal-score">--</span>
+                        <span class="score-max">/100</span>
+                    </div>
+                    <div class="feedback" id="personal-feedback"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reading Comprehension Assessment -->
+        <div class="assessment-section" id="comprehension-assessment" style="display: none;">
+            <div class="assessment-header">
+                <h2>📝 Reading Comprehension Assessment</h2>
+                <p>Read AI-generated passages and answer comprehension questions</p>
+            </div>
+            
+            <div class="assessment-content">
+                <div class="loading" id="comprehension-loading">
+                    <div class="spinner"></div>
+                    <p>Generating reading comprehension content...</p>
+                </div>
+                
+                <div class="comprehension-setup" id="comprehension-setup" style="display: none;">
+                    <div class="setup-instructions">
+                        <h3>📚 Setup Your Reading Test</h3>
+                        <p>Choose your preferred topic and difficulty level for the reading comprehension exercise.</p>
+                    </div>
+                    
+                    <div class="setup-options">
+                        <div class="option-group">
+                            <label for="comprehension-topic">Topic:</label>
+                            <select id="comprehension-topic">
+                                <option value="science">Science</option>
+                                <option value="history">History</option>
+                                <option value="technology" selected>Technology</option>
+                                <option value="literature">Literature</option>
+                                <option value="geography">Geography</option>
+                                <option value="psychology">Psychology</option>
+                                <option value="economics">Economics</option>
+                                <option value="space exploration">Space Exploration</option>
+                                <option value="artificial intelligence">Artificial Intelligence</option>
+                            </select>
+                        </div>
+                        
+                        <div class="option-group">
+                            <label for="comprehension-difficulty">Difficulty:</label>
+                            <select id="comprehension-difficulty">
+                                <option value="beginner">Beginner</option>
+                                <option value="intermediate" selected>Intermediate</option>
+                                <option value="advanced">Advanced</option>
+                            </select>
+                        </div>
+                        
+                        <button id="comprehension-generate-btn" class="generate-btn">Generate Reading Test</button>
+                    </div>
+                </div>
+                
+                <div class="comprehension-quiz" id="comprehension-quiz" style="display: none;">
+                    <div class="passage-section">
+                        <div class="passage-header">
+                            <h3>📖 Reading Passage</h3>
+                            <div class="passage-meta">
+                                <span class="topic-badge" id="comprehension-topic-badge">Technology</span>
+                                <span class="difficulty-badge" id="comprehension-difficulty-badge">Intermediate</span>
+                            </div>
+                        </div>
+                        <div class="passage-content" id="comprehension-passage"></div>
+                    </div>
+                    
+                    <div class="questions-section" id="comprehension-questions-section">
+                        <div class="question-header">
+                            <h3>❓ Comprehension Questions</h3>
+                            <div class="question-progress">
+                                Question <span id="comprehension-current-q">1</span> of <span id="comprehension-total-q">5</span>
+                            </div>
+                        </div>
+                        
+                        <div class="question-display" id="comprehension-question-display">
+                            <!-- Dynamic question content -->
+                        </div>
+                        
+                        <div class="question-navigation">
+                            <button id="comprehension-prev-btn" class="nav-btn" disabled>← Previous</button>
+                            <button id="comprehension-next-btn" class="nav-btn">Next →</button>
+                            <button id="comprehension-submit-btn" class="submit-btn" style="display: none;">Submit Quiz</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="results-display" id="comprehension-results" style="display: none;">
+                    <h3>Reading Comprehension Results</h3>
+                    <div class="score-display">
+                        <span class="score-label">Score:</span>
+                        <span class="score-value" id="comprehension-score">--</span>
+                        <span class="score-max">/100</span>
+                    </div>
+                    <div class="feedback" id="comprehension-feedback"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fill in the Blanks Assessment -->
+        <div class="assessment-section" id="fillblanks-assessment" style="display: none;">
+            <div class="assessment-header">
+                <h2>⚫ Fill in the Blanks Assessment</h2>
+                <p>Complete sentences with appropriate grammar and vocabulary</p>
+            </div>
+            
+            <div class="assessment-content">
+                <div class="loading" id="fillblanks-loading">
+                    <div class="spinner"></div>
+                    <p>Generating fill-in-the-blanks questions...</p>
+                </div>
+                
+                <div class="fillblanks-instructions" id="fillblanks-instructions" style="display: none;">
+                    <div class="instructions-content">
+                        <h3>📝 Fill in the Blanks Instructions</h3>
+                        <p>You will be presented with 10 grammar-based questions. Choose the best option to complete each sentence.</p>
+                        <ul>
+                            <li>Each question has 3 multiple-choice options</li>
+                            <li>Focus on grammar, verb forms, tenses, articles, and prepositions</li>
+                            <li>You can navigate between questions before submitting</li>
+                            <li>Take your time to read each sentence carefully</li>
+                        </ul>
+                        <button id="fillblanks-start-btn" class="start-btn">Start Assessment</button>
+                    </div>
+                </div>
+                
+                <div class="fillblanks-quiz" id="fillblanks-quiz" style="display: none;">
+                    <div class="question-progress">
+                        Question <span id="fillblanks-current">1</span> of <span id="fillblanks-total">10</span>
+                    </div>
+                    
+                    <div class="question-container" id="fillblanks-question-container">
+                        <!-- Dynamic question content -->
+                    </div>
+                    
+                    <div class="quiz-navigation">
+                        <button id="fillblanks-prev-btn" class="nav-btn" disabled>← Previous</button>
+                        <button id="fillblanks-next-btn" class="nav-btn">Next →</button>
+                        <button id="fillblanks-submit-btn" class="submit-btn" style="display: none;">Submit Quiz</button>
+                    </div>
+                    
+                    <div class="progress-indicator">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="fillblanks-progress"></div>
+                        </div>
+                        <div class="answered-count">
+                            <span id="fillblanks-answered">0</span> of <span id="fillblanks-total-questions">10</span> answered
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="results-display" id="fillblanks-results" style="display: none;">
+                    <h3>Fill in the Blanks Results</h3>
+                    <div class="score-display">
+                        <span class="score-label">Score:</span>
+                        <span class="score-value" id="fillblanks-score">--</span>
+                        <span class="score-max">/100</span>
+                    </div>
+                    <div class="feedback" id="fillblanks-feedback"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Final Results -->
+        <div class="final-results" id="final-results" style="display: none;">
+            <div class="results-header">
+                <h2>📊 Assessment Complete!</h2>
+                <p>Here's your comprehensive communication assessment report</p>
+            </div>
+            
+            <div class="overall-score">
+                <div class="score-circle">
+                    <div class="score-number" id="overall-score">--</div>
+                    <div class="score-text">Overall Score</div>
+                </div>
+            </div>
+            
+            <div class="detailed-scores">
+                <div class="score-item">
+                    <span class="score-name">Reading Ability</span>
+                    <span class="score-bar">
+                        <span class="score-fill" id="reading-score-bar"></span>
+                    </span>
+                    <span class="score-num" id="reading-final-score">--</span>
+                </div>
+                
+                <div class="score-item">
+                    <span class="score-name">Listening Ability</span>
+                    <span class="score-bar">
+                        <span class="score-fill" id="listening-score-bar"></span>
+                    </span>
+                    <span class="score-num" id="listening-final-score">--</span>
+                </div>
+                
+                <div class="score-item">
+                    <span class="score-name">Jumbled Sentences</span>
+                    <span class="score-bar">
+                        <span class="score-fill" id="jumbled-score-bar"></span>
+                    </span>
+                    <span class="score-num" id="jumbled-final-score">--</span>
+                </div>
+
+                <div class="score-item">
+                    <span class="score-name">Story Summarization</span>
+                    <span class="score-bar">
+                        <span class="score-fill" id="story-score-bar"></span>
+                    </span>
+                    <span class="score-num" id="story-final-score">--</span>
+                </div>
+
+                <div class="score-item">
+                    <span class="score-name">Personal Questions</span>
+                    <span class="score-bar">
+                        <span class="score-fill" id="personal-score-bar"></span>
+                    </span>
+                    <span class="score-num" id="personal-final-score">--</span>
+                </div>
+
+                <div class="score-item">
+                    <span class="score-name">Reading Comprehension</span>
+                    <span class="score-bar">
+                        <span class="score-fill" id="comprehension-score-bar"></span>
+                    </span>
+                    <span class="score-num" id="comprehension-final-score">--</span>
+                </div>
+
+                <div class="score-item">
+                    <span class="score-name">Fill in the Blanks</span>
+                    <span class="score-bar">
+                        <span class="score-fill" id="fillblanks-score-bar"></span>
+                    </span>
+                    <span class="score-num" id="fillblanks-final-score">--</span>
+                </div>
+            </div>
+            
+            <div class="results-actions">
+                <button id="restart-btn" class="action-btn">Start New Assessment</button>
+                <button id="print-btn" class="action-btn secondary">Print Report</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="main.js"></script>
+    <script src="reading-assessment.js"></script>
+    <script src="listening-assessment.js"></script>
+    <script src="jumbled-assessment.js"></script>
+    <script src="story-assessment.js"></script>
+    <script src="personal-assessment.js"></script>
+    <script src="comprehension-assessment.js"></script>
+    <script src="fillblanks-assessment.js"></script>
+</body>
+</html> 
