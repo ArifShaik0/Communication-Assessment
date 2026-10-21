@@ -12,6 +12,18 @@ class PersonalAssessment {
         this.recordingStartTime = null;
         this.timerInterval = null;
         
+        // Random selection arrays
+        this.difficulties = ['Easy', 'Medium', 'Hard'];
+        this.categories = [
+            'General',
+            'Technical Communication',
+            'Problem Solving',
+            'Teamwork',
+            'Leadership',
+            'Failure/Learning',
+            'Innovation'
+        ];
+        
         this.initializeElements();
         this.initializeEventListeners();
     }
@@ -20,16 +32,12 @@ class PersonalAssessment {
         this.elements = {
             loading: document.getElementById('personal-loading'),
             questionDisplay: document.getElementById('personal-question-display'),
-            difficulty: document.getElementById('personal-difficulty'),
-            category: document.getElementById('personal-category'),
-            generateBtn: document.getElementById('personal-generate-btn'),
             questionContainer: document.getElementById('personal-question-container'),
             difficultyBadge: document.getElementById('personal-difficulty-badge'),
             categoryBadge: document.getElementById('personal-category-badge'),
             questionText: document.getElementById('personal-question-text'),
             recordBtn: document.getElementById('personal-record-btn'),
             stopBtn: document.getElementById('personal-stop-btn'),
-            retryBtn: document.getElementById('personal-retry-btn'),
             status: document.getElementById('personal-status'),
             timer: document.getElementById('personal-timer'),
             results: document.getElementById('personal-results'),
@@ -39,10 +47,6 @@ class PersonalAssessment {
     }
 
     initializeEventListeners() {
-        if (this.elements.generateBtn) {
-            this.elements.generateBtn.addEventListener('click', () => this.generateQuestion());
-        }
-
         if (this.elements.recordBtn) {
             this.elements.recordBtn.addEventListener('click', () => this.startRecording());
         }
@@ -50,10 +54,11 @@ class PersonalAssessment {
         if (this.elements.stopBtn) {
             this.elements.stopBtn.addEventListener('click', () => this.stopRecording());
         }
+    }
 
-        if (this.elements.retryBtn) {
-            this.elements.retryBtn.addEventListener('click', () => this.generateQuestion());
-        }
+    // Helper method to randomly select from array
+    getRandomSelection(array) {
+        return array[Math.floor(Math.random() * array.length)];
     }
 
     async initialize() {
@@ -61,8 +66,6 @@ class PersonalAssessment {
             return;
         }
 
-        console.log('Initializing Personal Assessment...');
-        
         // Check if Speech SDK is available
         if (!window.SpeechSDK) {
             this.showError('Speech recognition is not supported in this browser. Please use Chrome or Edge.');
@@ -72,6 +75,15 @@ class PersonalAssessment {
         this.resetUI();
         await this.loadAzureConfig();
         this.showQuestionSettings();
+        
+        // Use pre-generated questions instead of generating new ones
+        if (window.assessmentController && window.assessmentController.preGeneratedQuestions.personal) {
+            setTimeout(() => this.usePreGeneratedQuestions(window.assessmentController.preGeneratedQuestions.personal), 500);
+        } else {
+            // Fallback to generating questions if pre-generation failed
+            setTimeout(() => this.generateQuestion(), 500);
+        }
+        
         this.isInitialized = true;
     }
 
@@ -79,7 +91,7 @@ class PersonalAssessment {
         try {
             const response = await fetch('/api/azure-config');
             this.azureConfig = await response.json();
-            console.log('Azure configuration loaded for personal assessment');
+
         } catch (error) {
             console.error('Failed to load Azure configuration:', error);
             this.showError('Failed to load speech configuration. Please refresh the page.');
@@ -98,7 +110,6 @@ class PersonalAssessment {
         this.isRecording = false;
         this.elements.recordBtn.style.display = 'inline-block';
         this.elements.stopBtn.style.display = 'none';
-        this.elements.retryBtn.style.display = 'none';
         this.elements.status.textContent = '';
         this.elements.status.className = 'recording-status';
         this.elements.timer.textContent = '';
@@ -118,13 +129,11 @@ class PersonalAssessment {
 
     async generateQuestion() {
         try {
-            this.elements.generateBtn.disabled = true;
-            this.elements.generateBtn.textContent = 'Generating...';
+            // Randomly select difficulty and category
+            const difficulty = this.getRandomSelection(this.difficulties);
+            const category = this.getRandomSelection(this.categories);
             
-            const difficulty = this.elements.difficulty.value;
-            const category = this.elements.category.value;
-            
-            console.log('Generating personal question...', { difficulty, category });
+            console.log('Generating personal question with random selection...', { difficulty, category });
 
             const response = await fetch('/api/personal/generate-question', {
                 method: 'POST',
@@ -153,9 +162,25 @@ class PersonalAssessment {
         } catch (error) {
             console.error('Error generating question:', error);
             this.showError('Failed to generate interview question. Please try again.');
-        } finally {
-            this.elements.generateBtn.disabled = false;
-            this.elements.generateBtn.textContent = 'Generate Question';
+        }
+    }
+
+    usePreGeneratedQuestions(data) {
+        console.log('Using pre-generated personal question:', data);
+        
+        if (data.success && data.question) {
+            this.currentQuestion = data.question;
+            // Use the actual difficulty and category from the pre-generated data
+            this.displayQuestion({
+                difficulty: data.difficulty || 'Medium',
+                category: data.category || 'General',
+                question: data.question
+            });
+            console.log(`Personal question displayed: ${data.difficulty || 'Medium'} difficulty, ${data.category || 'General'} category`);
+        } else {
+            console.error('No question found in pre-generated data:', data);
+            // Fallback to generating new questions
+            this.generateQuestion();
         }
     }
 
@@ -187,11 +212,15 @@ class PersonalAssessment {
             const SpeechSDK = window.SpeechSDK;
             
             // Create speech configuration
-            const speechConfig = SpeechSDK.SpeechConfig.fromSubscription(
-                this.azureConfig.subscriptionKey, 
+            const speechConfig = SpeechSDK.SpeechConfig.fromAuthorizationToken(
+                this.azureConfig.token, 
                 this.azureConfig.region
             );
             speechConfig.speechRecognitionLanguage = 'en-US';
+            
+            // Enable detailed recognition results for better prosody assessment
+            speechConfig.setProperty(SpeechSDK.PropertyId.Speech_SegmentationSilenceTimeoutMs, "5000");
+            speechConfig.setProperty(SpeechSDK.PropertyId.SpeechServiceConnection_LanguageIdMode, "Continuous");
 
             // Create audio configuration
             const audioConfig = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
@@ -203,6 +232,13 @@ class PersonalAssessment {
                 SpeechSDK.PronunciationAssessmentGranularity.Phoneme,
                 true // Enable miscue assessment
             );
+            
+            // Enable prosody assessment if available
+            try {
+                pronunciationAssessmentConfig.enableProsodyAssessment = true;
+            } catch (e) {
+                console.log('Prosody assessment configuration not available:', e);
+            }
 
             // Create speech recognizer for continuous recognition with pronunciation assessment
             this.recognizer = new SpeechSDK.SpeechRecognizer(speechConfig, audioConfig);
@@ -218,8 +254,8 @@ class PersonalAssessment {
             // Update UI
             this.elements.recordBtn.style.display = 'none';
             this.elements.stopBtn.style.display = 'inline-block';
-            this.elements.retryBtn.style.display = 'inline-block';
-            this.elements.status.textContent = '🎤 Recording... Speak your answer clearly and confidently';
+            this.elements.stopBtn.classList.add('recording');
+            this.elements.status.innerHTML = '<span class="audio-wave"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span>Recording... Speak your answer clearly and confidently';
             this.elements.status.className = 'recording-status recording';
             
             // Start recording timer
@@ -230,9 +266,9 @@ class PersonalAssessment {
                 // Show intermediate results
                 const interim = this.spokenResponse + e.result.text;
                 if (interim.length > 100) {
-                    this.elements.status.textContent = `🎤 Recording... "${interim.substring(0, 100)}..."`;
+                    this.elements.status.innerHTML = `<span class=\"audio-wave\"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span>Recording... \"${interim.substring(0, 100)}...\"`;
                 } else {
-                    this.elements.status.textContent = `🎤 Recording... "${interim}"`;
+                    this.elements.status.innerHTML = `<span class=\"audio-wave\"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span>Recording... \"${interim}\"`;
                 }
             };
 
@@ -244,17 +280,27 @@ class PersonalAssessment {
                     try {
                         const pronunciationResult = SpeechSDK.PronunciationAssessmentResult.fromResult(e.result);
                         if (pronunciationResult) {
-                            this.pronunciationResults.push({
+                            const segmentResult = {
                                 text: e.result.text,
                                 pronunciationScore: pronunciationResult.pronunciationScore || 0,
                                 accuracyScore: pronunciationResult.accuracyScore || 0,
                                 fluencyScore: pronunciationResult.fluencyScore || 0,
                                 completenessScore: pronunciationResult.completenessScore || 0,
                                 prosodyScore: pronunciationResult.prosodyScore || 0
+                            };
+                            
+                            // Debug logging for prosody
+                            console.log('Azure pronunciation result for segment:', {
+                                text: e.result.text,
+                                prosodyScore: pronunciationResult.prosodyScore,
+                                rawResult: pronunciationResult
                             });
+                            
+                            this.pronunciationResults.push(segmentResult);
                         }
                     } catch (err) {
-                        console.log('Could not extract pronunciation assessment for segment:', err);
+                        console.error('Could not extract pronunciation assessment for segment:', err);
+                        console.log('Speech result object:', e.result);
                     }
                     
                     console.log('Recognized text:', e.result.text);
@@ -277,6 +323,7 @@ class PersonalAssessment {
                     this.isRecording = false;
                     this.elements.recordBtn.style.display = 'inline-block';
                     this.elements.stopBtn.style.display = 'none';
+                    this.elements.stopBtn.classList.remove('recording');
                 }
             );
             
@@ -286,6 +333,7 @@ class PersonalAssessment {
             this.isRecording = false;
             this.elements.recordBtn.style.display = 'inline-block';
             this.elements.stopBtn.style.display = 'none';
+            this.elements.stopBtn.classList.remove('recording');
         }
     }
 
@@ -363,6 +411,7 @@ class PersonalAssessment {
                 let weightedFluency = 0;
                 let weightedCompleteness = 0;
                 let weightedProsody = 0;
+                let segmentsWithProsody = 0;
 
                 this.pronunciationResults.forEach(result => {
                     const wordCount = result.text.split(' ').length;
@@ -372,7 +421,12 @@ class PersonalAssessment {
                     weightedAccuracy += (result.accuracyScore || 0) * wordCount;
                     weightedFluency += (result.fluencyScore || 0) * wordCount;
                     weightedCompleteness += (result.completenessScore || 0) * wordCount;
-                    weightedProsody += (result.prosodyScore || 0) * wordCount;
+                    
+                    // Handle prosody separately to track availability
+                    if (result.prosodyScore !== undefined && result.prosodyScore !== null) {
+                        weightedProsody += result.prosodyScore * wordCount;
+                        segmentsWithProsody += wordCount;
+                    }
                 });
 
                 if (totalWords > 0) {
@@ -380,10 +434,24 @@ class PersonalAssessment {
                     azureResults.accuracyScore = Math.round(weightedAccuracy / totalWords);
                     azureResults.fluencyScore = Math.round(weightedFluency / totalWords);
                     azureResults.completenessScore = Math.round(weightedCompleteness / totalWords);
-                    azureResults.prosodyScore = Math.round(weightedProsody / totalWords);
+                    
+                    // Calculate prosody score if available from any segments
+                    if (segmentsWithProsody > 0) {
+                        azureResults.prosodyScore = Math.round(weightedProsody / segmentsWithProsody);
+                    } else {
+                        // Set to 0 if no prosody data available, but still show it
+                        azureResults.prosodyScore = 0;
+                        console.warn('No prosody scores available from Azure Speech API');
+                    }
                 }
 
                 console.log('Calculated Azure pronunciation scores:', azureResults);
+                console.log('Prosody calculation details:', {
+                    totalSegments: this.pronunciationResults.length,
+                    segmentsWithProsody: segmentsWithProsody,
+                    totalWords: totalWords,
+                    finalProsodyScore: azureResults.prosodyScore
+                });
             } else {
                 // Fallback to basic scores if no pronunciation results were captured
                 console.warn('No pronunciation assessment results available, using fallback scores');
@@ -391,7 +459,7 @@ class PersonalAssessment {
                 azureResults.accuracyScore = 60;
                 azureResults.fluencyScore = 65;
                 azureResults.completenessScore = 70;
-                azureResults.prosodyScore = 60;
+                azureResults.prosodyScore = 60; // Include prosody in fallback
             }
             
             const response = await fetch('/api/personal/evaluate', {
@@ -421,65 +489,24 @@ class PersonalAssessment {
     }
 
     displayResults(result, azureResults) {
-        // Hide status and show results
-        this.elements.status.textContent = '';
+        // Hide question display and clear status to avoid stops
         this.elements.questionDisplay.style.display = 'none';
-        this.elements.results.style.display = 'block';
+        this.elements.status.textContent = '';
+        this.elements.status.style.color = '';
         
-        // Display score
-        const score = Math.round(result.score || 0);
-        this.elements.score.textContent = score;
+        // Store results for final display but don't show individual results
+        // Results section remains hidden
         
-        // Generate feedback display
-        let feedbackHtml = '<div class="personal-feedback-content">';
-        
-        // Show interview question
-        feedbackHtml += '<div class="interview-question">';
-        feedbackHtml += '<h4>❓ Interview Question:</h4>';
-        feedbackHtml += `<p class="question-text">"${this.currentQuestion}"</p>`;
-        feedbackHtml += '</div>';
-        
-        // Show user response
-        feedbackHtml += '<div class="user-response">';
-        feedbackHtml += '<h4>🎤 Your Response:</h4>';
-        feedbackHtml += `<p class="response-text">"${this.spokenResponse.trim()}"</p>`;
-        feedbackHtml += '</div>';
-        
-        // Show Azure Speech Assessment Results (if available)
-        if (azureResults && azureResults.pronunciationScore > 0) {
-            feedbackHtml += '<div class="azure-pronunciation-results">';
-            feedbackHtml += '<h4>🔊 Speech Quality Assessment (Azure):</h4>';
-            feedbackHtml += '<div class="pronunciation-metrics">';
-            feedbackHtml += `<div class="metric"><span class="metric-label">Pronunciation:</span> <span class="metric-value">${azureResults.pronunciationScore}/100</span></div>`;
-            feedbackHtml += `<div class="metric"><span class="metric-label">Accuracy:</span> <span class="metric-value">${azureResults.accuracyScore}/100</span></div>`;
-            feedbackHtml += `<div class="metric"><span class="metric-label">Fluency:</span> <span class="metric-value">${azureResults.fluencyScore}/100</span></div>`;
-            if (azureResults.prosodyScore > 0) {
-                feedbackHtml += `<div class="metric"><span class="metric-label">Prosody:</span> <span class="metric-value">${azureResults.prosodyScore}/100</span></div>`;
-            }
-            feedbackHtml += '</div>';
-            feedbackHtml += '</div>';
-        }
-        
-        // Show AI feedback with proper formatting
-        feedbackHtml += '<div class="ai-feedback">';
-        feedbackHtml += '<h4>🤖 Interviewer Feedback:</h4>';
-        feedbackHtml += `<div class="feedback-text">${result.feedback.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</div>`;
-        feedbackHtml += '</div>';
-        
-        feedbackHtml += '</div>';
-        
-        this.elements.feedback.innerHTML = feedbackHtml;
-        
-        // Color code the score
-        this.colorCodeScore(score);
-        
-        // Notify main controller that assessment is complete
+        // Notify main controller that assessment is complete and auto-advance
         if (window.assessmentController) {
             window.assessmentController.onAssessmentComplete('personal', result.score);
+            // Auto-advance to next section after a brief delay
+            setTimeout(() => {
+                window.assessmentController.nextStep();
+            }, 500);
         }
-        
-        console.log('Personal assessment completed with score:', result.score);
-        console.log('Azure pronunciation metrics:', azureResults);
+
+        console.log('Personal assessment completed - results stored for final analysis');
     }
 
     colorCodeScore(score) {
@@ -511,14 +538,8 @@ class PersonalAssessment {
         this.elements.status.className = 'recording-status error';
     }
 
-    // Reset the assessment for retrying
-    reset() {
-        this.isInitialized = false;
-        this.currentQuestion = '';
-        this.spokenResponse = '';
-        this.pronunciationResults = [];
-        this.isRecording = false;
-        
+    // Enhanced cleanup method
+    cleanup() {
         if (this.timerInterval) {
             clearInterval(this.timerInterval);
             this.timerInterval = null;
@@ -526,18 +547,36 @@ class PersonalAssessment {
         
         if (this.recognizer) {
             try {
-                this.recognizer.stopContinuousRecognitionAsync();
+                if (this.isRecording) {
+                    this.recognizer.stopContinuousRecognitionAsync();
+                }
                 this.recognizer.close();
             } catch (e) {
                 console.log('Error closing personal recognizer:', e);
             }
             this.recognizer = null;
         }
+        
+        this.isRecording = false;
+        this.recordingStartTime = null;
+        this.pronunciationResults = [];
+    }
+
+    // Reset the assessment for retrying
+    reset() {
+        this.cleanup();
+        this.isInitialized = false;
+        this.currentQuestion = '';
+        this.spokenResponse = '';
+    }
+    
+    // Cleanup on page unload
+    onPageUnload() {
+        this.cleanup();
     }
 }
 
 // Initialize the personal assessment when the DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     window.PersonalAssessment = new PersonalAssessment();
-    console.log('Personal Assessment module loaded with Azure Speech SDK');
 }); 

@@ -10,6 +10,20 @@ class ComprehensionAssessment {
         this.topic = 'technology';
         this.difficulty = 'intermediate';
         
+        // Random selection arrays
+        this.topics = [
+            'science',
+            'history',
+            'technology',
+            'literature',
+            'geography',
+            'psychology',
+            'economics',
+            'space exploration',
+            'artificial intelligence'
+        ];
+        this.difficulties = ['beginner', 'intermediate', 'advanced'];
+        
         this.initializeElements();
         this.initializeEventListeners();
     }
@@ -18,11 +32,9 @@ class ComprehensionAssessment {
         this.elements = {
             loading: document.getElementById('comprehension-loading'),
             setup: document.getElementById('comprehension-setup'),
-            topicSelect: document.getElementById('comprehension-topic'),
-            difficultySelect: document.getElementById('comprehension-difficulty'),
-            generateBtn: document.getElementById('comprehension-generate-btn'),
             quiz: document.getElementById('comprehension-quiz'),
             passage: document.getElementById('comprehension-passage'),
+            questionPrompt: document.getElementById('comprehension-question-prompt'),
             topicBadge: document.getElementById('comprehension-topic-badge'),
             difficultyBadge: document.getElementById('comprehension-difficulty-badge'),
             questionsSection: document.getElementById('comprehension-questions-section'),
@@ -39,10 +51,6 @@ class ComprehensionAssessment {
     }
 
     initializeEventListeners() {
-        if (this.elements.generateBtn) {
-            this.elements.generateBtn.addEventListener('click', () => this.generateContent());
-        }
-
         if (this.elements.prevBtn) {
             this.elements.prevBtn.addEventListener('click', () => this.previousQuestion());
         }
@@ -56,15 +64,22 @@ class ComprehensionAssessment {
         }
     }
 
+    // Helper method to randomly select from array
+    getRandomSelection(array) {
+        return array[Math.floor(Math.random() * array.length)];
+    }
+
     async initialize() {
         if (this.isInitialized) {
             return;
         }
 
-        console.log('Initializing Reading Comprehension Assessment...');
-        
         this.resetUI();
         this.showSetup();
+        
+        // Auto-generate content with random selection
+        setTimeout(() => this.generateContent(), 500);
+        
         this.isInitialized = true;
     }
 
@@ -89,49 +104,66 @@ class ComprehensionAssessment {
 
     async generateContent() {
         try {
-            this.elements.generateBtn.disabled = true;
-            this.elements.generateBtn.textContent = 'Generating...';
-            
-            this.topic = this.elements.topicSelect.value;
-            this.difficulty = this.elements.difficultySelect.value;
-            
-            console.log('Generating reading comprehension content...', { topic: this.topic, difficulty: this.difficulty });
-            
             this.elements.setup.style.display = 'none';
             this.elements.loading.style.display = 'block';
 
-            const response = await fetch('/api/comprehension/generate', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    topic: this.topic,
-                    difficulty: this.difficulty
-                })
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
-            
-            if (data.success && data.passage && data.questions) {
-                this.currentPassage = data.passage;
-                this.currentQuestions = data.questions;
-                this.userAnswers = new Array(data.questions.length).fill(null);
-                this.displayContent();
+            // Use pre-generated questions instead of generating new ones
+            if (window.assessmentController && window.assessmentController.preGeneratedQuestions.comprehension) {
+                const data = window.assessmentController.preGeneratedQuestions.comprehension;
+                console.log('Using pre-generated comprehension content');
+                
+                if (data.success && data.passage && data.questions) {
+                    this.currentPassage = data.passage;
+                    this.currentQuestions = data.questions;
+                    this.userAnswers = new Array(data.questions.length).fill(null);
+                    // Set topic and difficulty from pre-generated data or use defaults
+                    this.topic = data.topic || 'Technology';
+                    this.difficulty = data.difficulty || 'Intermediate';
+                    
+                    console.log(`Reading comprehension assessment selected topic: ${this.topic}, difficulty: ${this.difficulty}`);
+                    this.displayContent();
+                } else {
+                    throw new Error('Failed to load pre-generated reading comprehension content');
+                }
             } else {
-                throw new Error('Failed to generate reading comprehension content');
+                // Fallback to generating content if pre-generation failed
+                // Randomly select topic and difficulty
+                this.topic = this.getRandomSelection(this.topics);
+                this.difficulty = this.getRandomSelection(this.difficulties);
+                
+                console.log(`Reading comprehension assessment selected topic: ${this.topic}, difficulty: ${this.difficulty}`);
+                console.log('Generating reading comprehension content with random selection...', { topic: this.topic, difficulty: this.difficulty });
+
+                const response = await fetch('/api/comprehension/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        topic: this.topic,
+                        difficulty: this.difficulty
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                if (data.success && data.passage && data.questions) {
+                    this.currentPassage = data.passage;
+                    this.currentQuestions = data.questions;
+                    this.userAnswers = new Array(data.questions.length).fill(null);
+                    this.displayContent();
+                } else {
+                    throw new Error('Failed to generate reading comprehension content');
+                }
             }
             
         } catch (error) {
-            console.error('Error generating reading comprehension content:', error);
-            this.showError('Failed to generate reading comprehension content. Please try again.');
-        } finally {
-            this.elements.generateBtn.disabled = false;
-            this.elements.generateBtn.textContent = 'Generate Reading Test';
+            console.error('Error loading reading comprehension content:', error);
+            this.showError('Failed to load reading comprehension content. Please try again.');
         }
     }
 
@@ -162,18 +194,19 @@ class ComprehensionAssessment {
 
         const question = this.currentQuestions[this.currentQuestionIndex];
         this.elements.currentQ.textContent = this.currentQuestionIndex + 1;
-        
-        let questionHtml = `
-            <div class="question-content">
-                <h4>Question ${this.currentQuestionIndex + 1}</h4>
-                <p class="question-text">${question.question}</p>
-                <div class="options-container">
-        `;
+
+        // Render the question prompt in the right column, above the options
+        if (this.elements.questionPrompt) {
+            this.elements.questionPrompt.textContent = question.question;
+        }
+
+        // Build only the options for the right column
+        let optionsHtml = `<div class="options-container">`;
 
         // Display options
         Object.entries(question.options).forEach(([key, value]) => {
             const isSelected = this.userAnswers[this.currentQuestionIndex] === key;
-            questionHtml += `
+            optionsHtml += `
                 <label class="option-label ${isSelected ? 'selected' : ''}">
                     <input type="radio" name="comprehension-q${this.currentQuestionIndex}" 
                            value="${key}" ${isSelected ? 'checked' : ''}
@@ -184,13 +217,14 @@ class ComprehensionAssessment {
             `;
         });
 
-        questionHtml += `
-                </div>
-            </div>
-        `;
+        optionsHtml += `</div>`;
 
-        this.elements.questionDisplay.innerHTML = questionHtml;
+        this.elements.questionDisplay.innerHTML = optionsHtml;
         this.updateNavigation();
+        // Update global question indicator
+        if (window.assessmentController && typeof window.assessmentController.updateNavigation === 'function') {
+            window.assessmentController.updateNavigation();
+        }
     }
 
     saveAnswer(answer) {
@@ -227,6 +261,9 @@ class ComprehensionAssessment {
         if (this.currentQuestionIndex < this.currentQuestions.length - 1) {
             this.currentQuestionIndex++;
             this.displayQuestion();
+            if (window.assessmentController && typeof window.assessmentController.updateNavigation === 'function') {
+                window.assessmentController.updateNavigation();
+            }
         }
     }
 
@@ -273,63 +310,22 @@ class ComprehensionAssessment {
     }
 
     displayResults(result) {
-        // Hide quiz and show results
+        // Hide quiz and clear content to avoid stops
         this.elements.quiz.style.display = 'none';
-        this.elements.results.style.display = 'block';
         
-        // Display score
-        const score = Math.round(result.score || 0);
-        this.elements.score.textContent = score;
+        // Store results for final display but don't show individual results
+        // Results section remains hidden
         
-        // Generate detailed feedback
-        let feedbackHtml = '<div class="comprehension-feedback-content">';
-        
-        // Summary section
-        feedbackHtml += '<div class="quiz-summary">';
-        feedbackHtml += '<h4>📊 Quiz Summary</h4>';
-        feedbackHtml += `<p><strong>Topic:</strong> ${this.topic}</p>`;
-        feedbackHtml += `<p><strong>Difficulty:</strong> ${this.difficulty}</p>`;
-        feedbackHtml += `<p><strong>Questions Correct:</strong> ${result.correctAnswers} out of ${result.totalQuestions}</p>`;
-        feedbackHtml += `<p><strong>Percentage:</strong> ${result.percentage}%</p>`;
-        feedbackHtml += '</div>';
-        
-        // Question by question breakdown
-        feedbackHtml += '<div class="question-breakdown">';
-        feedbackHtml += '<h4>📝 Question Breakdown</h4>';
-        
-        result.results.forEach((questionResult, index) => {
-            const statusIcon = questionResult.isCorrect ? '✅' : '❌';
-            const statusClass = questionResult.isCorrect ? 'correct' : 'incorrect';
-            
-            feedbackHtml += `<div class="question-result ${statusClass}">`;
-            feedbackHtml += `<h5>${statusIcon} Question ${questionResult.questionIndex}</h5>`;
-            feedbackHtml += `<p class="question-text">${questionResult.question}</p>`;
-            feedbackHtml += `<p><strong>Your Answer:</strong> ${questionResult.userAnswer || 'Not answered'}</p>`;
-            
-            if (!questionResult.isCorrect) {
-                feedbackHtml += `<p><strong>Correct Answer:</strong> ${questionResult.correctAnswer}</p>`;
-                if (questionResult.options && questionResult.correctAnswer) {
-                    feedbackHtml += `<p><strong>Explanation:</strong> ${questionResult.options[questionResult.correctAnswer]}</p>`;
-                }
-            }
-            
-            feedbackHtml += '</div>';
-        });
-        
-        feedbackHtml += '</div>';
-        feedbackHtml += '</div>';
-        
-        this.elements.feedback.innerHTML = feedbackHtml;
-        
-        // Color code the score
-        this.colorCodeScore(score);
-        
-        // Notify main controller that assessment is complete
+        // Notify main controller that assessment is complete and auto-advance
         if (window.assessmentController) {
             window.assessmentController.onAssessmentComplete('comprehension', result.score);
+            // Auto-advance to next section after a brief delay
+            setTimeout(() => {
+                window.assessmentController.nextStep();
+            }, 500);
         }
-        
-        console.log('Reading comprehension assessment completed with score:', result.score);
+
+        console.log('Comprehension assessment completed - results stored for final analysis');
     }
 
     colorCodeScore(score) {
@@ -373,5 +369,4 @@ class ComprehensionAssessment {
 // Initialize the reading comprehension assessment when the DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     window.ComprehensionAssessment = new ComprehensionAssessment();
-    console.log('Reading Comprehension Assessment module loaded');
 }); 

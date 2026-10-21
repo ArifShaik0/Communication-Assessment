@@ -7,6 +7,21 @@ class FillBlanksAssessment {
         this.currentQuestionIndex = 0;
         this.isInitialized = false;
         
+        // Topic and difficulty selection properties
+        this.topics = [
+            'Grammar patterns',
+            'Vocabulary building',
+            'Idiomatic expressions',
+            'Academic writing',
+            'Business correspondence',
+            'Conversational English',
+            'Technical terminology',
+            'Cultural contexts'
+        ];
+        this.difficulties = ['beginner', 'intermediate', 'advanced'];
+        this.selectedTopic = null;
+        this.selectedDifficulty = null;
+        
         this.initializeElements();
         this.initializeEventListeners();
     }
@@ -50,15 +65,36 @@ class FillBlanksAssessment {
         }
     }
 
+    // Random selection utility method
+    getRandomSelection(array) {
+        if (!array || array.length === 0) return null;
+        return array[Math.floor(Math.random() * array.length)];
+    }
+
+    // Select random topic and difficulty for this assessment session
+    selectRandomTopicAndDifficulty() {
+        this.selectedTopic = this.getRandomSelection(this.topics);
+        this.selectedDifficulty = this.getRandomSelection(this.difficulties);
+        
+        console.log(`Fill-in-the-blanks assessment selected topic: ${this.selectedTopic}, difficulty: ${this.selectedDifficulty}`);
+        
+        return {
+            topic: this.selectedTopic,
+            difficulty: this.selectedDifficulty
+        };
+    }
+
     async initialize() {
         if (this.isInitialized) {
             return;
         }
 
-        console.log('Initializing Fill in the Blanks Assessment...');
-        
+        // Select random topic and difficulty for this session
+        this.selectRandomTopicAndDifficulty();
+
         this.resetUI();
-        this.showInstructions();
+        // Skip instructions and start assessment automatically for continuous flow
+        setTimeout(() => this.startAssessment(), 500);
         this.isInitialized = true;
     }
 
@@ -83,37 +119,65 @@ class FillBlanksAssessment {
     async startAssessment() {
         try {
             this.elements.startBtn.disabled = true;
-            this.elements.startBtn.textContent = 'Generating Questions...';
+            this.elements.startBtn.textContent = 'Loading Questions...';
             
             console.log('Starting fill-in-the-blanks assessment...');
             
             this.elements.instructions.style.display = 'none';
             this.elements.loading.style.display = 'block';
 
-            const response = await fetch('/api/fillblanks/generate', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
+            // Use pre-generated questions instead of generating new ones
+            if (window.assessmentController && window.assessmentController.preGeneratedQuestions.fillblanks) {
+                const data = window.assessmentController.preGeneratedQuestions.fillblanks;
+                if (data.success && data.questions) {
+                    // Use topic and difficulty from pre-generated data if available
+                    if (data.topic && data.difficulty) {
+                        this.selectedTopic = data.topic;
+                        this.selectedDifficulty = data.difficulty;
+                        console.log(`🎯 Fill-in-the-blanks assessment: Using pre-generated topic "${this.selectedTopic}" with difficulty "${this.selectedDifficulty}"`);
+                        console.log(`📊 Loaded ${data.questions.length} pre-generated questions`);
+                    }
+                    
+                    this.questions = data.questions;
+                    this.userAnswers = new Array(data.questions.length).fill(null);
+                    this.displayQuiz();
+                } else {
+                    throw new Error('Failed to load pre-generated fill-in-the-blanks questions');
                 }
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
-            
-            if (data.success && data.questions) {
-                this.questions = data.questions;
-                this.userAnswers = new Array(data.questions.length).fill(null);
-                this.displayQuiz();
             } else {
-                throw new Error('Failed to generate fill-in-the-blanks questions');
+                // Fallback to generating questions if pre-generation failed
+                console.log('Generating fill-in-the-blanks questions...');
+                console.log(`Using topic: ${this.selectedTopic}, difficulty: ${this.selectedDifficulty}`);
+                
+                const response = await fetch('/api/fillblanks/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        topic: this.selectedTopic,
+                        difficulty: this.selectedDifficulty
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                if (data.success && data.questions) {
+                    this.questions = data.questions;
+                    this.userAnswers = new Array(data.questions.length).fill(null);
+                    this.displayQuiz();
+                } else {
+                    throw new Error('Failed to generate fill-in-the-blanks questions');
+                }
             }
             
         } catch (error) {
-            console.error('Error generating fill-in-the-blanks questions:', error);
-            this.showError('Failed to generate questions. Please try again.');
+            console.error('Error loading fill-in-the-blanks questions:', error);
+            this.showError('Failed to load questions. Please try again.');
         } finally {
             this.elements.startBtn.disabled = false;
             this.elements.startBtn.textContent = 'Start Assessment';
@@ -172,6 +236,10 @@ class FillBlanksAssessment {
 
         this.elements.questionContainer.innerHTML = questionHtml;
         this.updateNavigation();
+        // Update global question indicator
+        if (window.assessmentController && typeof window.assessmentController.updateNavigation === 'function') {
+            window.assessmentController.updateNavigation();
+        }
     }
 
     saveAnswer(answer) {
@@ -219,6 +287,9 @@ class FillBlanksAssessment {
         if (this.currentQuestionIndex < this.questions.length - 1) {
             this.currentQuestionIndex++;
             this.displayQuestion();
+            if (window.assessmentController && typeof window.assessmentController.updateNavigation === 'function') {
+                window.assessmentController.updateNavigation();
+            }
         }
     }
 
@@ -265,94 +336,33 @@ class FillBlanksAssessment {
     }
 
     displayResults(result) {
-        // Hide quiz and show results
+        // Hide quiz but don't show detailed results
         this.elements.quiz.style.display = 'none';
-        this.elements.results.style.display = 'block';
         
-        // Display score
-        const score = Math.round(result.score || 0);
-        this.elements.score.textContent = score;
+        // Show completion message instead of detailed results
+        const completionMsg = document.createElement('div');
+        completionMsg.style.cssText = 'text-align: center; padding: 20px; color: #28a745; font-size: 18px;';
+        completionMsg.innerHTML = 'Grammar assessment completed!<br>Your language proficiency will be evaluated at the end.';
         
-        // Generate detailed feedback
-        let feedbackHtml = '<div class="fillblanks-feedback-content">';
+        // Insert completion message where quiz was
+        this.elements.quiz.parentNode.insertBefore(completionMsg, this.elements.quiz.nextSibling);
         
-        // Summary section
-        feedbackHtml += '<div class="quiz-summary">';
-        feedbackHtml += '<h4>📊 Grammar Assessment Summary</h4>';
-        feedbackHtml += `<p><strong>Questions Correct:</strong> ${result.correctAnswers} out of ${result.totalQuestions}</p>`;
-        feedbackHtml += `<p><strong>Percentage:</strong> ${result.percentage}%</p>`;
+        // Store the completion message element for cleanup
+        this.completionMessage = completionMsg;
         
-        // Performance level
-        let performanceLevel = '';
-        let performanceIcon = '';
-        if (score >= 90) {
-            performanceLevel = 'Excellent';
-            performanceIcon = '🌟';
-        } else if (score >= 70) {
-            performanceLevel = 'Good';
-            performanceIcon = '👍';
-        } else if (score >= 50) {
-            performanceLevel = 'Fair';
-            performanceIcon = '⚡';
-        } else {
-            performanceLevel = 'Needs Improvement';
-            performanceIcon = '📚';
-        }
+        // Store results for final display but don't show individual results
+        // Results section remains hidden
         
-        feedbackHtml += `<p><strong>Performance Level:</strong> ${performanceIcon} ${performanceLevel}</p>`;
-        feedbackHtml += '</div>';
-        
-        // Question by question breakdown
-        feedbackHtml += '<div class="question-breakdown">';
-        feedbackHtml += '<h4>📝 Question Breakdown</h4>';
-        
-        result.results.forEach((questionResult, index) => {
-            const statusIcon = questionResult.isCorrect ? '✅' : '❌';
-            const statusClass = questionResult.isCorrect ? 'correct' : 'incorrect';
-            
-            feedbackHtml += `<div class="question-result ${statusClass}">`;
-            feedbackHtml += `<h5>${statusIcon} Question ${questionResult.questionIndex}</h5>`;
-            feedbackHtml += `<p class="question-text">${questionResult.question}</p>`;
-            feedbackHtml += `<p><strong>Your Answer:</strong> ${questionResult.userAnswer || 'Not answered'}</p>`;
-            
-            if (!questionResult.isCorrect) {
-                feedbackHtml += `<p><strong>Correct Answer:</strong> ${questionResult.correctAnswer}</p>`;
-            }
-            
-            feedbackHtml += `<div class="available-options">`;
-            feedbackHtml += `<strong>Available Options:</strong> ${questionResult.options.join(', ')}`;
-            feedbackHtml += `</div>`;
-            
-            feedbackHtml += '</div>';
-        });
-        
-        feedbackHtml += '</div>';
-        
-        // Grammar tips based on performance
-        feedbackHtml += '<div class="grammar-tips">';
-        feedbackHtml += '<h4>💡 Grammar Tips</h4>';
-        if (score >= 80) {
-            feedbackHtml += '<p>Excellent grammar skills! Keep practicing to maintain your proficiency.</p>';
-        } else if (score >= 60) {
-            feedbackHtml += '<p>Good grammar foundation. Focus on the areas you missed to improve further.</p>';
-        } else {
-            feedbackHtml += '<p>Consider reviewing basic grammar rules. Practice with verb tenses, articles, and prepositions.</p>';
-        }
-        feedbackHtml += '</div>';
-        
-        feedbackHtml += '</div>';
-        
-        this.elements.feedback.innerHTML = feedbackHtml;
-        
-        // Color code the score
-        this.colorCodeScore(score);
-        
-        // Notify main controller that assessment is complete
+        // Notify main controller that assessment is complete (last assessment)
         if (window.assessmentController) {
             window.assessmentController.onAssessmentComplete('fillblanks', result.score);
+            // Show end of assessment section instead of auto-advancing
+            setTimeout(() => {
+                window.assessmentController.showEndOfAssessment();
+            }, 500);
         }
-        
-        console.log('Fill-in-the-blanks assessment completed with score:', result.score);
+
+        console.log('Fill-in-the-blanks assessment completed - showing end of assessment section');
     }
 
     colorCodeScore(score) {
@@ -395,5 +405,4 @@ class FillBlanksAssessment {
 // Initialize the fill-in-the-blanks assessment when the DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     window.FillBlanksAssessment = new FillBlanksAssessment();
-    console.log('Fill in the Blanks Assessment module loaded');
 }); 

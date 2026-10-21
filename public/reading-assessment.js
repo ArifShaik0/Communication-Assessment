@@ -8,6 +8,27 @@ class ReadingAssessment {
         this.isInitialized = false;
         this.azureConfig = null;
         
+        // New properties for multiple sentences
+        this.currentIndex = 1;
+        this.totalSentences = 5;
+        this.completedSentences = 0;
+        this.allResults = []; // Store all assessment results for final score calculation
+        
+        // Topic and difficulty selection properties
+        this.topics = [
+            'Daily conversations',
+            'Business communication',
+            'Academic presentations',
+            'News and current events',
+            'Travel and culture',
+            'Health and wellness',
+            'Technology and innovation',
+            'Environmental topics'
+        ];
+        this.difficulties = ['beginner', 'intermediate', 'advanced'];
+        this.selectedTopic = null;
+        this.selectedDifficulty = null;
+        
         this.initializeElements();
         this.initializeEventListeners();
     }
@@ -22,8 +43,26 @@ class ReadingAssessment {
             status: document.getElementById('reading-status'),
             results: document.getElementById('reading-results'),
             score: document.getElementById('reading-score'),
-            feedback: document.getElementById('reading-feedback')
+            feedback: document.getElementById('reading-feedback'),
+            // Add progress indicator element
+            progress: document.getElementById('reading-progress') || this.createProgressElement()
         };
+    }
+
+    createProgressElement() {
+        // Create progress element if it doesn't exist
+        const progressDiv = document.createElement('div');
+        progressDiv.id = 'reading-progress';
+        progressDiv.className = 'assessment-progress';
+        progressDiv.style.cssText = 'text-align: center; margin: 10px 0; font-weight: bold; color: #667eea;';
+        
+        // Insert it before the sentence element
+        const sentenceElement = document.getElementById('reading-sentence');
+        if (sentenceElement && sentenceElement.parentNode) {
+            sentenceElement.parentNode.insertBefore(progressDiv, sentenceElement);
+        }
+        
+        return progressDiv;
     }
 
     initializeEventListeners() {
@@ -36,13 +75,30 @@ class ReadingAssessment {
         }
     }
 
+    // Random selection utility method
+    getRandomSelection(array) {
+        if (!array || array.length === 0) return null;
+        return array[Math.floor(Math.random() * array.length)];
+    }
+
+    // Select random topic and difficulty for this assessment session
+    selectRandomTopicAndDifficulty() {
+        this.selectedTopic = this.getRandomSelection(this.topics);
+        this.selectedDifficulty = this.getRandomSelection(this.difficulties);
+        
+        console.log(`Reading assessment selected topic: ${this.selectedTopic}, difficulty: ${this.selectedDifficulty}`);
+        
+        return {
+            topic: this.selectedTopic,
+            difficulty: this.selectedDifficulty
+        };
+    }
+
     async initialize() {
         if (this.isInitialized) {
             return;
         }
 
-        console.log('Initializing Reading Assessment...');
-        
         // Check if Speech SDK is available
         if (!window.SpeechSDK) {
             this.showError('Speech recognition is not supported in this browser. Please use Chrome or Edge.');
@@ -51,7 +107,18 @@ class ReadingAssessment {
 
         this.resetUI();
         await this.loadAzureConfig();
-        await this.generateSentence();
+        
+        // Select random topic and difficulty for this assessment session
+        this.selectRandomTopicAndDifficulty();
+        
+        // Use pre-generated questions instead of generating new ones
+        if (window.assessmentController && window.assessmentController.preGeneratedQuestions.reading) {
+            this.usePreGeneratedQuestions(window.assessmentController.preGeneratedQuestions.reading);
+        } else {
+            // Fallback to generating questions if pre-generation failed
+            await this.generateSentence();
+        }
+        
         this.isInitialized = true;
     }
 
@@ -59,7 +126,7 @@ class ReadingAssessment {
         try {
             const response = await fetch('/api/azure-config');
             this.azureConfig = await response.json();
-            console.log('Azure configuration loaded');
+
         } catch (error) {
             console.error('Failed to load Azure configuration:', error);
             this.showError('Failed to load speech configuration. Please refresh the page.');
@@ -83,13 +150,18 @@ class ReadingAssessment {
 
     async generateSentence() {
         try {
-            console.log('Generating sentence for reading assessment...');
+            console.log('Generating sentences for reading assessment...');
+            console.log(`Using topic: ${this.selectedTopic}, difficulty: ${this.selectedDifficulty}`);
             
             const response = await fetch('/api/reading/generate-sentence', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
-                }
+                },
+                body: JSON.stringify({
+                    topic: this.selectedTopic,
+                    difficulty: this.selectedDifficulty
+                })
             });
 
             if (!response.ok) {
@@ -100,14 +172,41 @@ class ReadingAssessment {
             
             if (data.sentence) {
                 this.currentSentence = data.sentence;
+                this.currentIndex = data.currentIndex || 1;
+                this.totalSentences = data.totalSentences || 5;
+                this.completedSentences = 0;
                 this.displaySentence();
             } else {
                 throw new Error('No sentence received from server');
             }
             
         } catch (error) {
-            console.error('Error generating sentence:', error);
-            this.showError('Failed to generate sentence. Please try refreshing the page.');
+            console.error('Error generating sentences:', error);
+            this.showError('Failed to generate sentences. Please try refreshing the page.');
+        }
+    }
+
+    usePreGeneratedQuestions(data) {
+        console.log('Using pre-generated reading questions');
+        
+        if (data.sentence) {
+            this.currentSentence = data.sentence;
+            this.currentIndex = data.currentIndex || 1;
+            this.totalSentences = data.totalSentences || 5;
+            this.completedSentences = 0;
+            
+            // Use topic and difficulty from pre-generated data if available
+            if (data.topic && data.difficulty) {
+                this.selectedTopic = data.topic;
+                this.selectedDifficulty = data.difficulty;
+                console.log(`Using pre-generated topic: ${this.selectedTopic}, difficulty: ${this.selectedDifficulty}`);
+            }
+            
+            this.displaySentence();
+        } else {
+            console.error('No sentence found in pre-generated data');
+            // Fallback to generating new questions
+            this.generateSentence();
         }
     }
 
@@ -118,7 +217,15 @@ class ReadingAssessment {
         
         this.elements.sentence.textContent = this.currentSentence;
         
-        console.log('Sentence displayed:', this.currentSentence);
+        // Hide progress indicator (UI choice)
+        this.elements.progress.style.display = 'none';
+        
+        console.log(`Sentence ${this.currentIndex}/${this.totalSentences} displayed:`, this.currentSentence);
+
+        // Update global question indicator
+        if (window.assessmentController && typeof window.assessmentController.updateNavigation === 'function') {
+            window.assessmentController.updateNavigation();
+        }
     }
 
     async startRecording() {
@@ -130,8 +237,8 @@ class ReadingAssessment {
             const SpeechSDK = window.SpeechSDK;
             
             // Create speech configuration
-            const speechConfig = SpeechSDK.SpeechConfig.fromSubscription(
-                this.azureConfig.subscriptionKey, 
+            const speechConfig = SpeechSDK.SpeechConfig.fromAuthorizationToken(
+                this.azureConfig.token, 
                 this.azureConfig.region
             );
             speechConfig.speechRecognitionLanguage = 'en-US';
@@ -156,7 +263,8 @@ class ReadingAssessment {
             // Update UI
             this.elements.recordBtn.style.display = 'none';
             this.elements.stopBtn.style.display = 'inline-block';
-            this.elements.status.textContent = '🎤 Recording... Please read the sentence above';
+            this.elements.stopBtn.classList.add('recording');
+            this.elements.status.innerHTML = '<span class="audio-wave"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span>Recording... Please read the sentence above';
             this.elements.status.className = 'recording-status recording';
             
             // Start recognition
@@ -164,13 +272,14 @@ class ReadingAssessment {
                 this.isRecording = false;
                 this.elements.recordBtn.style.display = 'inline-block';
                 this.elements.stopBtn.style.display = 'none';
+                this.elements.stopBtn.classList.remove('recording');
                 this.elements.status.className = 'recording-status';
 
                 if (result.reason === SpeechSDK.ResultReason.RecognizedSpeech) {
                     const paResult = SpeechSDK.PronunciationAssessmentResult.fromResult(result);
                     this.processResults(paResult, result.text);
                 } else {
-                    this.elements.status.textContent = '❌ No speech detected. Please try again.';
+                    this.elements.status.textContent = 'No speech detected. Please try again.';
                     console.error('Speech recognition failed:', result);
                 }
             });
@@ -181,6 +290,7 @@ class ReadingAssessment {
             this.isRecording = false;
             this.elements.recordBtn.style.display = 'inline-block';
             this.elements.stopBtn.style.display = 'none';
+            this.elements.stopBtn.classList.remove('recording');
         }
     }
 
@@ -191,6 +301,7 @@ class ReadingAssessment {
             this.isRecording = false;
             this.elements.recordBtn.style.display = 'inline-block';
             this.elements.stopBtn.style.display = 'none';
+            this.elements.stopBtn.classList.remove('recording');
             this.elements.status.textContent = '';
         }
     }
@@ -208,8 +319,13 @@ class ReadingAssessment {
                 fluencyScore: paResult.fluencyScore || 0,
                 completenessScore: paResult.completenessScore || 0,
                 recognizedText: recognizedText || '',
-                detailResult: paResult.detailResult
+                detailResult: paResult.detailResult,
+                referenceText: this.currentSentence
             };
+
+            // Store result in local array for final score calculation
+            this.allResults.push(resultData);
+            console.log(`Stored reading result ${this.allResults.length}:`, resultData);
 
             // Store results on server for logging
             await fetch('/api/reading/store-result', {
@@ -232,29 +348,115 @@ class ReadingAssessment {
     }
 
     displayResults(result) {
-        // Hide status and show results
+        // Clear status immediately to avoid any stops
         this.elements.status.textContent = '';
-        this.elements.results.style.display = 'block';
+        this.elements.status.style.color = '';
         
         // Extract pronunciation score
         const pronunciationScore = Math.round(result.pronunciationScore || 0);
         
-        // Display score
-        this.elements.score.textContent = pronunciationScore;
+        // Increment completed sentences
+        this.completedSentences++;
         
-        // Generate feedback
-        let feedback = this.generateFeedback(result);
-        this.elements.feedback.innerHTML = feedback;
+        // Show brief success message
+        this.elements.status.textContent = `Sentence ${this.currentIndex} completed!`;
+        this.elements.status.style.color = '#28a745';
         
-        // Color code the score
-        this.colorCodeScore(pronunciationScore);
-        
-        // Notify main controller that assessment is complete
-        if (window.assessmentController) {
-            window.assessmentController.onAssessmentComplete('reading', result.pronunciationScore);
+        // Get next sentence or complete assessment
+        setTimeout(() => {
+            this.getNextSentence();
+        }, 1500);
+    }
+
+    async getNextSentence() {
+        try {
+            const response = await fetch('/api/reading/get-next-sentence', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            
+            if (data.complete) {
+                // All sentences completed
+                this.completeAssessment();
+            } else {
+                // Load next sentence
+                this.currentSentence = data.sentence;
+                this.currentIndex = data.currentIndex;
+                this.displaySentence();
+                
+                // Reset UI for next recording
+                this.elements.recordBtn.style.display = 'inline-block';
+                this.elements.stopBtn.style.display = 'none';
+                this.elements.status.textContent = '';
+                this.elements.status.style.color = '';
+
+                // Update global question indicator after advancing
+                if (window.assessmentController && typeof window.assessmentController.updateNavigation === 'function') {
+                    window.assessmentController.updateNavigation();
+                }
+            }
+            
+        } catch (error) {
+            console.error('Error getting next sentence:', error);
+            this.showError('Failed to get next sentence. Assessment will complete.');
+            this.completeAssessment();
         }
+    }
+
+    completeAssessment() {
+        this.elements.status.textContent = 'Reading assessment completed!';
+        this.elements.status.style.color = '#28a745';
+        this.elements.progress.textContent = `All ${this.totalSentences} sentences completed!`;
         
-        console.log('Reading assessment completed with score:', result.pronunciationScore);
+        // Calculate actual overall score from Azure Speech results
+        const actualScore = this.calculateOverallScore();
+        
+        // Notify main controller that assessment is complete and auto-advance
+        if (window.assessmentController) {
+            window.assessmentController.onAssessmentComplete('reading', actualScore);
+            // Auto-advance to next section after a brief delay
+            setTimeout(() => {
+                window.assessmentController.nextStep();
+            }, 2000);
+        }
+    }
+
+    calculateOverallScore() {
+        // If no results recorded, return 0
+        if (!this.allResults || this.allResults.length === 0) {
+            console.warn('No reading assessment results available, returning 0');
+            return 0;
+        }
+
+        // Calculate average of all pronunciation scores
+        let totalScore = 0;
+        let validScores = 0;
+
+        this.allResults.forEach(result => {
+            if (result && result.pronunciationScore !== undefined && result.pronunciationScore > 0) {
+                totalScore += result.pronunciationScore;
+                validScores++;
+            }
+        });
+
+        // If no valid scores, try to get from server or use fallback
+        if (validScores === 0) {
+            console.warn('No valid pronunciation scores found, using fallback score of 60');
+            return 60;
+        }
+
+        const averageScore = Math.round(totalScore / validScores);
+        console.log(`Reading assessment overall score: ${averageScore} (averaged from ${validScores} results)`);
+        
+        return averageScore;
     }
 
     generateFeedback(result) {
@@ -357,25 +559,37 @@ class ReadingAssessment {
         }
     }
 
-    // Reset the assessment for retrying
-    reset() {
-        this.isInitialized = false;
-        this.currentSentence = '';
-        this.isRecording = false;
-        
+    // Enhanced cleanup method
+    cleanup() {
         if (this.recognizer) {
             try {
+                if (this.isRecording) {
+                    this.recognizer.stopContinuousRecognitionAsync();
+                }
                 this.recognizer.close();
             } catch (e) {
-                console.log('Error closing recognizer:', e);
+                console.log('Error closing reading recognizer:', e);
             }
             this.recognizer = null;
         }
+        
+        this.isRecording = false;
+    }
+
+    // Reset the assessment for retrying
+    reset() {
+        this.cleanup();
+        this.isInitialized = false;
+        this.currentSentence = '';
+    }
+    
+    // Cleanup on page unload
+    onPageUnload() {
+        this.cleanup();
     }
 }
 
 // Initialize the reading assessment when the DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     window.ReadingAssessment = new ReadingAssessment();
-    console.log('Reading Assessment module loaded with Azure Speech SDK');
 }); 

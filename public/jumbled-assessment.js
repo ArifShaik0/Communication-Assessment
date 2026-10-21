@@ -8,6 +8,21 @@ class JumbledAssessment {
         this.currentScore = 0;
         this.isInitialized = false;
         
+        // Topic and difficulty selection properties
+        this.topics = [
+            'Everyday activities',
+            'Work and career',
+            'Education and learning',
+            'Family and relationships',
+            'Hobbies and interests',
+            'Food and cooking',
+            'Transportation',
+            'Social situations'
+        ];
+        this.difficulties = ['beginner', 'intermediate', 'advanced'];
+        this.selectedTopic = null;
+        this.selectedDifficulty = null;
+        
         this.initializeElements();
         this.initializeEventListeners();
     }
@@ -47,14 +62,43 @@ class JumbledAssessment {
         }
     }
 
+    // Random selection utility method
+    getRandomSelection(array) {
+        if (!array || array.length === 0) return null;
+        return array[Math.floor(Math.random() * array.length)];
+    }
+
+    // Select random topic and difficulty for this assessment session
+    selectRandomTopicAndDifficulty() {
+        this.selectedTopic = this.getRandomSelection(this.topics);
+        this.selectedDifficulty = this.getRandomSelection(this.difficulties);
+        
+        console.log(`Jumbled assessment selected topic: ${this.selectedTopic}, difficulty: ${this.selectedDifficulty}`);
+        
+        return {
+            topic: this.selectedTopic,
+            difficulty: this.selectedDifficulty
+        };
+    }
+
     async initialize() {
         if (this.isInitialized) {
             return;
         }
 
-        console.log('Initializing Jumbled Assessment...');
         this.resetUI();
-        await this.startJumbledGame();
+        
+        // Select random topic and difficulty for this assessment session
+        this.selectRandomTopicAndDifficulty();
+        
+        // Use pre-generated questions instead of generating new ones
+        if (window.assessmentController && window.assessmentController.preGeneratedQuestions.jumbled) {
+            this.usePreGeneratedQuestions(window.assessmentController.preGeneratedQuestions.jumbled);
+        } else {
+            // Fallback to generating questions if pre-generation failed
+            await this.startJumbledGame();
+        }
+        
         this.isInitialized = true;
     }
 
@@ -80,12 +124,17 @@ class JumbledAssessment {
     async startJumbledGame() {
         try {
             console.log('Starting jumbled sentences game...');
+            console.log(`Using topic: ${this.selectedTopic}, difficulty: ${this.selectedDifficulty}`);
             
             const response = await fetch('/api/jumbled/start', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
-                }
+                },
+                body: JSON.stringify({
+                    topic: this.selectedTopic,
+                    difficulty: this.selectedDifficulty
+                })
             });
 
             if (!response.ok) {
@@ -110,14 +159,31 @@ class JumbledAssessment {
         }
     }
 
+    usePreGeneratedQuestions(data) {
+        console.log('Using pre-generated jumbled questions');
+        
+        if (data.jumbled) {
+            // Use topic and difficulty from pre-generated data if available
+            if (data.topic && data.difficulty) {
+                this.selectedTopic = data.topic;
+                this.selectedDifficulty = data.difficulty;
+                console.log(`Using pre-generated topic: ${this.selectedTopic}, difficulty: ${this.selectedDifficulty}`);
+            }
+            
+            this.displayQuestion(data);
+        } else {
+            console.error('No jumbled question found in pre-generated data');
+            // Fallback to generating new questions
+            this.startJumbledGame();
+        }
+    }
+
     displayQuestion(data) {
         // Hide loading, show game
         this.elements.loading.style.display = 'none';
         this.elements.game.style.display = 'block';
         
         // Update question display
-        this.elements.current.textContent = (this.currentQuestionIndex + 1).toString();
-        this.elements.total.textContent = data.totalQuestions || this.totalQuestions;
         this.elements.sentence.textContent = data.jumbled || data.nextJumbled;
         
         // Clear input and focus
@@ -129,6 +195,11 @@ class JumbledAssessment {
         this.elements.feedback.className = 'jumbled-feedback';
         
         console.log('Question displayed:', data.jumbled || data.nextJumbled);
+
+        // Update global question indicator
+        if (window.assessmentController && typeof window.assessmentController.updateNavigation === 'function') {
+            window.assessmentController.updateNavigation();
+        }
     }
 
     async submitAnswer() {
@@ -177,31 +248,25 @@ class JumbledAssessment {
 
     handleSubmitResult(result) {
         const isCorrect = result.correct;
-        const correctAnswer = result.correctAnswer;
         
-        // Show feedback for current answer
+        // Update score if correct
         if (isCorrect) {
-            this.showFeedback('✅ Correct! Well done!', 'correct');
             this.currentScore += 20; // 20 points per question
-        } else {
-            this.showFeedback(`❌ Incorrect. The correct answer was: "${correctAnswer}"`, 'incorrect');
         }
         
-        // Wait before proceeding to next question
-        setTimeout(() => {
-            if (result.complete) {
-                // Assessment complete
-                this.showFinalResults(result.finalScore || this.currentScore);
-            } else {
-                // Move to next question
-                this.currentQuestionIndex++;
-                this.displayQuestion({
-                    jumbled: result.nextJumbled,
-                    totalQuestions: result.totalQuestions,
-                    currentQuestion: result.currentQuestion
-                });
-            }
-        }, 2000);
+        // Immediately proceed to next question or complete assessment
+        if (result.complete) {
+            // Assessment complete - use backend calculated score
+            this.showFinalResults(result.finalScore);
+        } else {
+            // Move to next question
+            this.currentQuestionIndex++;
+            this.displayQuestion({
+                jumbled: result.nextJumbled,
+                totalQuestions: result.totalQuestions,
+                currentQuestion: result.currentQuestion
+            });
+        }
     }
 
     showFeedback(message, type) {
@@ -221,22 +286,22 @@ class JumbledAssessment {
     }
 
     showFinalResults(finalScore) {
-        // Hide game, show results
+        // Hide game and clear any content to avoid stops
         this.elements.game.style.display = 'none';
-        this.elements.results.style.display = 'block';
         
-        // Display final score
-        this.elements.score.textContent = finalScore;
+        // Store results for final display but don't show individual results
+        // Results section remains hidden
         
-        // Color code the score
-        this.colorCodeScore(finalScore);
-        
-        // Notify main controller that assessment is complete
+        // Notify main controller that assessment is complete and auto-advance
         if (window.assessmentController) {
             window.assessmentController.onAssessmentComplete('jumbled', finalScore);
+            // Auto-advance to next section after a brief delay
+            setTimeout(() => {
+                window.assessmentController.nextStep();
+            }, 500);
         }
-        
-        console.log('Jumbled assessment completed with score:', finalScore);
+
+        console.log('Jumbled sentences assessment completed - results stored for final analysis');
     }
 
     colorCodeScore(score) {
@@ -336,5 +401,4 @@ class JumbledAssessment {
 // Initialize the jumbled assessment when the DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     window.JumbledAssessment = new JumbledAssessment();
-    console.log('Jumbled Assessment module loaded');
 }); 

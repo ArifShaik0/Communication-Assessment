@@ -9,6 +9,27 @@ class ListeningAssessment {
         this.isInitialized = false;
         this.azureConfig = null;
         
+        // New properties for multiple sentences
+        this.currentIndex = 1;
+        this.totalSentences = 5;
+        this.completedSentences = 0;
+        this.allResults = []; // Store all assessment results for final score calculation
+        
+        // Topic and difficulty selection properties
+        this.topics = [
+            'Interviews and dialogues',
+            'News broadcasts',
+            'Educational lectures',
+            'Travel announcements',
+            'Business meetings',
+            'Cultural discussions',
+            'Scientific explanations',
+            'Entertainment content'
+        ];
+        this.difficulties = ['beginner', 'intermediate', 'advanced'];
+        this.selectedTopic = null;
+        this.selectedDifficulty = null;
+        
         this.initializeElements();
         this.initializeEventListeners();
     }
@@ -18,14 +39,25 @@ class ListeningAssessment {
             loading: document.getElementById('listening-loading'),
             player: document.getElementById('listening-player'),
             audio: document.getElementById('listening-audio'),
+            text: document.getElementById('listening-text'),
             controls: document.getElementById('listening-controls'),
             recordBtn: document.getElementById('listening-record-btn'),
             stopBtn: document.getElementById('listening-stop-btn'),
             status: document.getElementById('listening-status'),
             results: document.getElementById('listening-results'),
             score: document.getElementById('listening-score'),
-            feedback: document.getElementById('listening-feedback')
+            feedback: document.getElementById('listening-feedback'),
+            // Add progress indicator element
+            progress: document.getElementById('listening-progress') || this.createProgressElement()
         };
+    }
+
+    createProgressElement() {
+        // Do not show textual progress in the UI anymore
+        const div = document.createElement('div');
+        div.id = 'listening-progress';
+        div.style.display = 'none';
+        return div;
     }
 
     initializeEventListeners() {
@@ -45,9 +77,47 @@ class ListeningAssessment {
             
             this.elements.audio.addEventListener('error', (e) => {
                 console.error('Audio playback error:', e);
-                this.showError('Audio playback failed. Please try refreshing the page.');
+                // Don't show error message automatically - let user try to play first
+                // Error will be handled when user actually tries to interact with audio
+            });
+            
+            // Handle play attempts and show error only if play fails
+            this.elements.audio.addEventListener('play', () => {
+                console.log('Audio started playing successfully');
+            });
+            
+            // Handle when user tries to play but it fails
+            this.elements.audio.addEventListener('pause', () => {
+                // Check if this was an unexpected pause due to error
+                if (this.elements.audio.currentTime === 0 && this.elements.audio.error) {
+                    this.showError('Audio playback failed. Please try refreshing the page.');
+                }
+            });
+            
+            // Add canplaythrough event to ensure audio is ready
+            this.elements.audio.addEventListener('canplaythrough', () => {
+                console.log('Audio is ready to play');
             });
         }
+    }
+
+    // Random selection utility method
+    getRandomSelection(array) {
+        if (!array || array.length === 0) return null;
+        return array[Math.floor(Math.random() * array.length)];
+    }
+
+    // Select random topic and difficulty for this assessment session
+    selectRandomTopicAndDifficulty() {
+        this.selectedTopic = this.getRandomSelection(this.topics);
+        this.selectedDifficulty = this.getRandomSelection(this.difficulties);
+        
+        console.log(`Listening assessment selected topic: ${this.selectedTopic}, difficulty: ${this.selectedDifficulty}`);
+        
+        return {
+            topic: this.selectedTopic,
+            difficulty: this.selectedDifficulty
+        };
     }
 
     async initialize() {
@@ -55,8 +125,6 @@ class ListeningAssessment {
             return;
         }
 
-        console.log('Initializing Listening Assessment...');
-        
         // Check if Speech SDK is available
         if (!window.SpeechSDK) {
             this.showError('Speech recognition is not supported in this browser. Please use Chrome or Edge.');
@@ -65,7 +133,18 @@ class ListeningAssessment {
 
         this.resetUI();
         await this.loadAzureConfig();
-        await this.generateListeningContent();
+        
+        // Select random topic and difficulty for this assessment session
+        this.selectRandomTopicAndDifficulty();
+        
+        // Use pre-generated questions instead of generating new ones
+        if (window.assessmentController && window.assessmentController.preGeneratedQuestions.listening) {
+            this.usePreGeneratedContent(window.assessmentController.preGeneratedQuestions.listening);
+        } else {
+            // Fallback to generating content if pre-generation failed
+            await this.generateListeningContent();
+        }
+        
         this.isInitialized = true;
     }
 
@@ -73,7 +152,7 @@ class ListeningAssessment {
         try {
             const response = await fetch('/api/azure-config');
             this.azureConfig = await response.json();
-            console.log('Azure configuration loaded for listening assessment');
+
         } catch (error) {
             console.error('Failed to load Azure configuration:', error);
             this.showError('Failed to load speech configuration. Please refresh the page.');
@@ -103,12 +182,17 @@ class ListeningAssessment {
     async generateListeningContent() {
         try {
             console.log('Generating listening content...');
+            console.log(`Using topic: ${this.selectedTopic}, difficulty: ${this.selectedDifficulty}`);
             
             const response = await fetch('/api/listening/generate', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
-                }
+                },
+                body: JSON.stringify({
+                    topic: this.selectedTopic,
+                    difficulty: this.selectedDifficulty
+                })
             });
 
             if (!response.ok) {
@@ -120,6 +204,9 @@ class ListeningAssessment {
             if (data.text && data.audioUrl) {
                 this.currentText = data.text;
                 this.audioUrl = data.audioUrl;
+                this.currentIndex = data.currentIndex || 1;
+                this.totalSentences = data.totalSentences || 5;
+                this.completedSentences = 0;
                 this.displayListeningContent();
             } else {
                 throw new Error('Incomplete listening content received from server');
@@ -128,6 +215,31 @@ class ListeningAssessment {
         } catch (error) {
             console.error('Error generating listening content:', error);
             this.showError('Failed to generate listening content. Please try refreshing the page.');
+        }
+    }
+
+    usePreGeneratedContent(data) {
+        console.log('Using pre-generated listening content');
+        
+        if (data.text && data.audioUrl) {
+            this.currentText = data.text;
+            this.audioUrl = data.audioUrl;
+            this.currentIndex = data.currentIndex || 1;
+            this.totalSentences = data.totalSentences || 5;
+            this.completedSentences = 0;
+            
+            // Use topic and difficulty from pre-generated data if available
+            if (data.topic && data.difficulty) {
+                this.selectedTopic = data.topic;
+                this.selectedDifficulty = data.difficulty;
+                console.log(`Using pre-generated topic: ${this.selectedTopic}, difficulty: ${this.selectedDifficulty}`);
+            }
+            
+            this.displayListeningContent();
+        } else {
+            console.error('No listening content found in pre-generated data');
+            // Fallback to generating new content
+            this.generateListeningContent();
         }
     }
 
@@ -140,8 +252,18 @@ class ListeningAssessment {
         this.elements.audio.src = this.audioUrl;
         this.elements.audio.load();
         
-        console.log('Listening content displayed. Text:', this.currentText);
+        // Show the current sentence text below the heading like Reading
+        if (this.elements.text) {
+            this.elements.text.textContent = this.currentText;
+        }
+        
+        console.log(`Listening content ${this.currentIndex}/${this.totalSentences} displayed. Text:`, this.currentText);
         console.log('Audio URL:', this.audioUrl);
+
+        // Update global question indicator
+        if (window.assessmentController && typeof window.assessmentController.updateNavigation === 'function') {
+            window.assessmentController.updateNavigation();
+        }
     }
 
     async startRecording() {
@@ -153,8 +275,8 @@ class ListeningAssessment {
             const SpeechSDK = window.SpeechSDK;
             
             // Create speech configuration
-            const speechConfig = SpeechSDK.SpeechConfig.fromSubscription(
-                this.azureConfig.subscriptionKey, 
+            const speechConfig = SpeechSDK.SpeechConfig.fromAuthorizationToken(
+                this.azureConfig.token, 
                 this.azureConfig.region
             );
             speechConfig.speechRecognitionLanguage = 'en-US';
@@ -179,7 +301,8 @@ class ListeningAssessment {
             // Update UI
             this.elements.recordBtn.style.display = 'none';
             this.elements.stopBtn.style.display = 'inline-block';
-            this.elements.status.textContent = '🎤 Recording... Please repeat what you heard';
+            this.elements.stopBtn.classList.add('recording');
+            this.elements.status.innerHTML = '<span class="audio-wave"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span>Recording... Please repeat what you heard';
             this.elements.status.className = 'recording-status recording';
             
             // Start recognition
@@ -187,13 +310,14 @@ class ListeningAssessment {
                 this.isRecording = false;
                 this.elements.recordBtn.style.display = 'inline-block';
                 this.elements.stopBtn.style.display = 'none';
+                this.elements.stopBtn.classList.remove('recording');
                 this.elements.status.className = 'recording-status';
 
                 if (result.reason === SpeechSDK.ResultReason.RecognizedSpeech) {
                     const paResult = SpeechSDK.PronunciationAssessmentResult.fromResult(result);
                     this.processResults(paResult, result.text);
                 } else {
-                    this.elements.status.textContent = '❌ No speech detected. Please try again.';
+                    this.elements.status.textContent = 'No speech detected. Please try again.';
                     console.error('Listening speech recognition failed:', result);
                 }
             });
@@ -204,6 +328,7 @@ class ListeningAssessment {
             this.isRecording = false;
             this.elements.recordBtn.style.display = 'inline-block';
             this.elements.stopBtn.style.display = 'none';
+            this.elements.stopBtn.classList.remove('recording');
         }
     }
 
@@ -231,8 +356,13 @@ class ListeningAssessment {
                 fluencyScore: paResult.fluencyScore || 0,
                 completenessScore: paResult.completenessScore || 0,
                 recognizedText: recognizedText || '',
-                detailResult: paResult.detailResult
+                detailResult: paResult.detailResult,
+                referenceText: this.currentText
             };
+
+            // Store result in local array for final score calculation
+            this.allResults.push(resultData);
+            console.log(`Stored listening result ${this.allResults.length}:`, resultData);
 
             // Store results on server for logging
             await fetch('/api/listening/store-result', {
@@ -255,29 +385,120 @@ class ListeningAssessment {
     }
 
     displayResults(result) {
-        // Hide status and show results
+        // Clear status immediately to avoid any stops
         this.elements.status.textContent = '';
-        this.elements.results.style.display = 'block';
+        this.elements.status.style.color = '';
         
         // Extract pronunciation score
         const pronunciationScore = Math.round(result.pronunciationScore || 0);
         
-        // Display score
-        this.elements.score.textContent = pronunciationScore;
+        // Increment completed sentences
+        this.completedSentences++;
         
-        // Generate feedback
-        let feedback = this.generateListeningFeedback(result);
-        this.elements.feedback.innerHTML = feedback;
+        // Show brief success message
+        this.elements.status.textContent = `Sentence ${this.currentIndex} completed!`;
+        this.elements.status.style.color = '#28a745';
         
-        // Color code the score
-        this.colorCodeScore(pronunciationScore);
+        // Get next sentence or complete assessment
+        setTimeout(() => {
+            this.getNextSentence();
+        }, 1500);
         
-        // Notify main controller that assessment is complete
+        console.log(`Listening sentence ${this.currentIndex} completed with score:`, pronunciationScore);
+    }
+
+    async getNextSentence() {
+        try {
+            const response = await fetch('/api/listening/get-next', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            
+            if (data.complete) {
+                // All sentences completed
+                this.completeAssessment();
+            } else {
+                // Load next sentence
+                this.currentText = data.text;
+                this.audioUrl = data.audioUrl;
+                this.currentIndex = data.currentIndex;
+                this.displayListeningContent();
+                
+                // Reset UI for next recording
+                this.elements.recordBtn.style.display = 'inline-block';
+                this.elements.stopBtn.style.display = 'none';
+                this.elements.status.textContent = '';
+                this.elements.status.style.color = '';
+
+                // Update global question indicator after advancing
+                if (window.assessmentController && typeof window.assessmentController.updateNavigation === 'function') {
+                    window.assessmentController.updateNavigation();
+                }
+            }
+            
+        } catch (error) {
+            console.error('Error getting next listening sentence:', error);
+            this.showError('Failed to get next sentence. Assessment will complete.');
+            this.completeAssessment();
+        }
+    }
+
+    completeAssessment() {
+        this.elements.status.textContent = 'Listening assessment completed!';
+        this.elements.status.style.color = '#28a745';
+        this.elements.progress.textContent = `All ${this.totalSentences} sentences completed!`;
+        
+        // Calculate actual overall score from Azure Speech results
+        const actualScore = this.calculateOverallScore();
+        
+        // Notify main controller that assessment is complete and auto-advance
         if (window.assessmentController) {
-            window.assessmentController.onAssessmentComplete('listening', result.pronunciationScore);
+            window.assessmentController.onAssessmentComplete('listening', actualScore);
+            // Auto-advance to next section after a brief delay
+            setTimeout(() => {
+                window.assessmentController.nextStep();
+            }, 2000);
         }
         
-        console.log('Listening assessment completed with score:', result.pronunciationScore);
+        console.log('Listening assessment completed - all sentences processed');
+    }
+
+    calculateOverallScore() {
+        // If no results recorded, return 0
+        if (!this.allResults || this.allResults.length === 0) {
+            console.warn('No listening assessment results available, returning 0');
+            return 0;
+        }
+
+        // Calculate average of all pronunciation scores
+        let totalScore = 0;
+        let validScores = 0;
+
+        this.allResults.forEach(result => {
+            if (result && result.pronunciationScore !== undefined && result.pronunciationScore > 0) {
+                totalScore += result.pronunciationScore;
+                validScores++;
+            }
+        });
+
+        // If no valid scores, try to get from server or use fallback
+        if (validScores === 0) {
+            console.warn('No valid pronunciation scores found, using fallback score of 60');
+            return 60;
+        }
+
+        const averageScore = Math.round(totalScore / validScores);
+        console.log(`Listening assessment overall score: ${averageScore} (averaged from ${validScores} results)`);
+        
+        return averageScore;
     }
 
     generateListeningFeedback(result) {
@@ -396,15 +617,13 @@ class ListeningAssessment {
         }
     }
 
-    // Reset the assessment for retrying
-    reset() {
-        this.isInitialized = false;
-        this.currentText = '';
-        this.audioUrl = '';
-        this.isRecording = false;
-        
+    // Enhanced cleanup method
+    cleanup() {
         if (this.recognizer) {
             try {
+                if (this.isRecording) {
+                    this.recognizer.stopContinuousRecognitionAsync();
+                }
                 this.recognizer.close();
             } catch (e) {
                 console.log('Error closing listening recognizer:', e);
@@ -415,12 +634,29 @@ class ListeningAssessment {
         if (this.elements.audio) {
             this.elements.audio.pause();
             this.elements.audio.src = '';
+            // Remove event listeners
+            this.elements.audio.removeEventListener('ended', this.audioEndedHandler);
+            this.elements.audio.removeEventListener('error', this.audioErrorHandler);
         }
+        
+        this.isRecording = false;
+        this.currentText = '';
+        this.audioUrl = '';
+    }
+
+    // Reset the assessment for retrying
+    reset() {
+        this.cleanup();
+        this.isInitialized = false;
+    }
+    
+    // Cleanup on page unload
+    onPageUnload() {
+        this.cleanup();
     }
 }
 
 // Initialize the listening assessment when the DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     window.ListeningAssessment = new ListeningAssessment();
-    console.log('Listening Assessment module loaded with Azure Speech SDK');
 }); 

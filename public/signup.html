@@ -4,90 +4,123 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sign Up - Communication Assessment Suite</title>
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="shortcut icon" href="/favicon.png">
+    <link rel="apple-touch-icon" href="/favicon.png">
     <link rel="stylesheet" href="auth-styles.css">
 </head>
 <body>
     <div class="container">
-        <!-- Header Section -->
-        <div class="header">
-            <h1>🎯 Communication Assessment Suite</h1>
-            <p>Join thousands of learners improving their communication skills</p>
+        <div class="topbar">
+            <div class="brand">Skill Tesseract</div>
+            <nav class="nav-links">
+                <a href="/" class="nav-link">Home</a>
+            </nav>
         </div>
 
         <!-- Signup Form -->
-        <div class="auth-form">
-            <h2>Create Your Account</h2>
-            
-            <form id="signup-form">
-                <div class="form-group">
-                    <label for="email">Email Address</label>
-                    <input type="email" id="email" name="email" required>
-                    <div class="error-message" id="email-error"></div>
-                    <div class="success-message" id="email-success"></div>
-                </div>
-
-                <div class="form-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" name="password" required>
-                    <div class="password-strength" id="password-strength" style="display: none;">
-                        <div class="strength-meter">
-                            <div class="strength-fill" id="strength-fill"></div>
-                        </div>
-                        <div class="strength-text" id="strength-text"></div>
+        <main class="page-band">
+            <div class="auth-form">
+                <h2>Sign up</h2>
+                <form id="signup-form">
+                    <div class="form-group">
+                        <label for="email">Email Address</label>
+                        <input type="email" id="email" name="email" required>
+                        <div class="error-message" id="email-error"></div>
+                        <div class="success-message" id="email-success"></div>
                     </div>
-                    <div class="error-message" id="password-error"></div>
-                </div>
-
-                <div class="form-group">
-                    <label for="confirmPassword">Confirm Password</label>
-                    <input type="password" id="confirmPassword" name="confirmPassword" required>
-                    <div class="error-message" id="confirmPassword-error"></div>
-                    <div class="success-message" id="confirmPassword-success"></div>
-                </div>
-
-                <div class="form-group">
-                    <button type="submit" class="btn btn-primary" id="signup-btn" disabled>
-                        <span class="btn-text">Create Account</span>
-                        <div class="loading" id="signup-loading">
-                            <div class="spinner"></div>
+                    <div class="form-group">
+                        <label for="username">Username</label>
+                        <input type="text" id="username" name="username" required minlength="3" maxlength="30" pattern="[a-zA-Z0-9_]+">
+                        <div class="error-message" id="username-error"></div>
+                        <div class="success-message" id="username-success"></div>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" name="password" required>
+                        <div class="password-strength" id="password-strength" style="display: none;">
+                            <div class="strength-meter">
+                                <div class="strength-fill" id="strength-fill"></div>
+                            </div>
+                            <div class="strength-text" id="strength-text"></div>
                         </div>
-                    </button>
-                </div>
-
-                <div class="form-links">
-                    <p>Already have an account? <a href="/login">Sign in here</a></p>
-                    <p><a href="/">← Back to Homepage</a></p>
-                </div>
-            </form>
-        </div>
+                        <div class="error-message" id="password-error"></div>
+                    </div>
+                    <div class="form-group">
+                        <label for="confirmPassword">Confirm Password</label>
+                        <input type="password" id="confirmPassword" name="confirmPassword" required>
+                        <div class="error-message" id="confirmPassword-error"></div>
+                        <div class="success-message" id="confirmPassword-success"></div>
+                    </div>
+                    <div class="form-group">
+                        <button type="submit" class="btn btn-primary" id="signup-btn" disabled>
+                            <span class="btn-text">Create Account</span>
+                            <div class="loading" id="signup-loading">
+                                <div class="spinner"></div>
+                            </div>
+                        </button>
+                    </div>
+                    <div class="form-links">
+                        <p>Already have an account? <a href="/login">Sign in</a></p>
+                    </div>
+                </form>
+            </div>
+        </main>
 
         <!-- Email Verification Notice -->
         <div class="auth-form" id="verification-notice" style="display: none;">
-            <h2>🎉 Account Created Successfully!</h2>
-            <div style="text-align: center; padding: 20px;">
-                <p><strong>Please check your email to verify your account.</strong></p>
-                <p>We've sent a verification link to <strong id="user-email"></strong></p>
-                <p>Click the link in the email to activate your account and start your assessment journey.</p>
-                
-                <div style="margin: 30px 0;">
-                    <p><em>Didn't receive the email?</em></p>
-                    <button type="button" class="btn btn-secondary" id="resend-btn">
-                        <span class="btn-text">Resend Verification Email</span>
+            <div class="verify-card">
+                <div class="verify-icon icon-circle success" aria-hidden="true">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M20 6L12 13L8 10" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M21 10V16C21 17.657 19.657 19 18 19H6C4.343 19 3 17.657 3 16V8C3 6.343 4.343 5 6 5H14" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+                    </svg>
+                </div>
+                <h2 class="verify-title">Check your inbox</h2>
+                <p class="verify-desc">
+                    We sent a verification link to
+                    <span class="verify-email" id="user-email"></span>.
+                    Click the link to activate your account.
+                </p>
+                <ul class="verify-steps">
+                    <li>Open your email app or go to your inbox</li>
+                    <li>Find the email from <strong>Communication Assessment Suite</strong></li>
+                    <li>Tap the <strong>Verify Email</strong> button in the message</li>
+                </ul>
+
+                <div class="verify-resend">
+                    <p class="muted">Didn't receive the email?</p>
+                    <button type="button" class="btn btn-primary" id="resend-btn">
+                        <span class="btn-text">Resend email</span>
                         <div class="loading" id="resend-loading">
                             <div class="spinner"></div>
                         </div>
                     </button>
+                    <div class="cooldown" id="resend-cooldown" style="display: none;">You can resend again in <span id="cooldown-seconds">30</span>s</div>
                 </div>
 
-                <div class="form-links">
-                    <p><a href="/login">Go to Login Page</a></p>
+                <div class="verify-actions">
+                    <a href="/login" class="btn btn-secondary">Go to Login</a>
+                    <a href="/" class="btn btn-secondary">Back to Home</a>
+                </div>
+
+                <div class="verify-tips">
+                    <p>Tip: Check your spam/junk folder, or search for "Verify Your Email - Communication Assessment Suite".</p>
                 </div>
             </div>
         </div>
 
         <!-- Footer -->
         <div class="footer">
-            <p>&copy; 2024 Communication Assessment Suite. Empowering better communication through AI.</p>
+            <div class="footer-inner">
+                <div class="footer-brand"><small>&copy; 2025 Skill Tesseract</small></div>
+                <nav class="footer-links" aria-label="Footer">
+                    <a href="/contact" class="footer-link">Contact us</a>
+                    <a href="mailto:mockinterview014@gmail.com" class="footer-link">Email</a>
+                    <a href="https://www.linkedin.com/company/skill-tesseract/?viewAsMember=true" target="_blank" rel="noopener" class="footer-link">LinkedIn</a>
+                    <a href="https://www.instagram.com/skilltesseract" target="_blank" rel="noopener" class="footer-link">Instagram</a>
+                </nav>
+            </div>
         </div>
     </div>
 
@@ -125,6 +158,7 @@
                 // Get form data
                 const formData = new FormData(signupForm);
                 const email = formData.get('email').trim();
+                const username = formData.get('username').trim();
                 const password = formData.get('password');
                 const confirmPassword = formData.get('confirmPassword');
 
@@ -136,6 +170,17 @@
                     hasErrors = true;
                 } else if (!isValidEmail(email)) {
                     showFieldError('email', 'Please enter a valid email address');
+                    hasErrors = true;
+                }
+
+                if (!username) {
+                    showFieldError('username', 'Username is required');
+                    hasErrors = true;
+                } else if (username.length < 3 || username.length > 30) {
+                    showFieldError('username', 'Username must be between 3 and 30 characters');
+                    hasErrors = true;
+                } else if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+                    showFieldError('username', 'Username can only contain letters, numbers, and underscores');
                     hasErrors = true;
                 }
 
@@ -167,7 +212,7 @@
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify({ email, password })
+                        body: JSON.stringify({ email, username, password })
                     });
 
                     const data = await response.json();
@@ -193,7 +238,33 @@
                 }
             });
 
-            // Resend verification email
+            // Resend verification email with cooldown
+            let resendCooldownTimer = null;
+            let resendCooldownRemaining = 0;
+
+            function startResendCooldown(seconds) {
+                const cooldownEl = document.getElementById('resend-cooldown');
+                const cooldownSecondsEl = document.getElementById('cooldown-seconds');
+                resendCooldownRemaining = seconds;
+                cooldownSecondsEl.textContent = resendCooldownRemaining;
+                cooldownEl.style.display = 'block';
+                resendBtn.disabled = true;
+                resendBtn.classList.add('disabled');
+
+                if (resendCooldownTimer) clearInterval(resendCooldownTimer);
+                resendCooldownTimer = setInterval(() => {
+                    resendCooldownRemaining -= 1;
+                    if (resendCooldownRemaining <= 0) {
+                        clearInterval(resendCooldownTimer);
+                        cooldownEl.style.display = 'none';
+                        resendBtn.disabled = false;
+                        resendBtn.classList.remove('disabled');
+                    } else {
+                        cooldownSecondsEl.textContent = resendCooldownRemaining;
+                    }
+                }, 1000);
+            }
+
             resendBtn.addEventListener('click', async function() {
                 setResendLoadingState(true);
 
@@ -210,6 +281,7 @@
 
                     if (response.ok) {
                         showMessage('Verification email sent successfully!', 'success');
+                        startResendCooldown(30);
                     } else {
                         showMessage(data.error || 'Failed to resend email. Please try again.', 'error');
                     }
@@ -237,6 +309,32 @@
                     this.classList.remove('error', 'success');
                     clearFieldError('email');
                     clearFieldSuccess('email');
+                }
+                updateSubmitButton();
+            });
+
+            document.getElementById('username').addEventListener('input', function() {
+                const username = this.value.trim();
+                if (username && username.length >= 3 && username.length <= 30 && /^[a-zA-Z0-9_]+$/.test(username)) {
+                    this.classList.remove('error');
+                    this.classList.add('success');
+                    clearFieldError('username');
+                    showFieldSuccess('username', 'Valid username');
+                } else if (username) {
+                    this.classList.remove('success');
+                    this.classList.add('error');
+                    clearFieldSuccess('username');
+                    if (username.length < 3) {
+                        showFieldError('username', 'Username too short');
+                    } else if (username.length > 30) {
+                        showFieldError('username', 'Username too long');
+                    } else if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+                        showFieldError('username', 'Only letters, numbers, and underscores allowed');
+                    }
+                } else {
+                    this.classList.remove('error', 'success');
+                    clearFieldError('username');
+                    clearFieldSuccess('username');
                 }
                 updateSubmitButton();
             });
@@ -361,11 +459,13 @@
 
             function updateSubmitButton() {
                 const email = document.getElementById('email').value.trim();
+                const username = document.getElementById('username').value.trim();
                 const password = document.getElementById('password').value;
                 const confirmPassword = document.getElementById('confirmPassword').value;
                 
                 const isValidForm = 
                     email && isValidEmail(email) &&
+                    username && username.length >= 3 && username.length <= 30 && /^[a-zA-Z0-9_]+$/.test(username) &&
                     password && checkPasswordStrength(password).score >= 3 &&
                     confirmPassword && password === confirmPassword;
                 
